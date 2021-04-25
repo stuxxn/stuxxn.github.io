@@ -1,0 +1,32 @@
+<p class="advisory-details">
+
+<table>
+    <tr>
+        <th>Product:</th>
+        <th>{{include.advisory.product}}</th>
+    </tr>
+    <tr>
+        <th>Homepage:</th>
+        <th><a href="{{include.advisory.homepage}}">{{include.advisory.homepage}}</a></th>
+    </tr>
+    <tr>
+        <th>Vulnerable version:</th>
+        <th>{{include.advisory.vulnerable_version | join: ", "}}</th>
+    </tr>
+    <tr>
+        <th>Fixed version:</th>
+        <th>{{include.advisory.fixed_version}}</th>
+    </tr>
+    <tr>
+        <th>CVSS Score:</th>
+        <th><span class="{{include.advisory.impact_text}}">{{include.advisory.impact_text}} {{include.advisory.impact_score}}</span> - <a href="https://www.first.org/cvss/calculator/3.1#{{include.advisory.cvss}}">{{include.advisory.cvss}}</a>
+        </th>
+    </tr>
+    <tr>
+        <th>Found:</th>
+        {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}        
+        <th>{{include.advisory.found | date: date_format}}</th>
+    </tr>
+</table>
+
+</p>
