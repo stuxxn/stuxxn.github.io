@@ -9,6 +9,20 @@
         <th>Homepage:</th>
         <th><a href="{{include.advisory.homepage}}">{{include.advisory.homepage}}</a></th>
     </tr>
+
+{% if include.advisory.cve %}
+    <tr>
+        <th>CVE Number:</th>
+        <th><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name={{include.advisory.cve}}">{{include.advisory.cve}}</a></th>
+    </tr>
+{% endif %}
+
+{% if include.advisory.tested_version %}
+    <tr>
+        <th>Tested version:</th>
+        <th>{{include.advisory.tested_version | join: ", "}}</th>
+    </tr>
+{% endif %}    
     <tr>
         <th>Vulnerable version:</th>
         <th>{{include.advisory.vulnerable_version | join: ", "}}</th>
