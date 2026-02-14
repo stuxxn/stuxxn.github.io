@@ -4,7 +4,7 @@ date:   2026-02-14
 categories: [advisory]
 advisory_collection: drivelock_multi_2026
 
-title:  "[Advisory - DriveLock] DriveLock Enterprise Service - Enterp Privilege escalation to Supervisor"
+title:  "[Advisory - DriveLock] DriveLock Enterprise Service - Privilege escalation to Supervisor"
 advisory:
   product: DriveLock - DriveLock Enterprise Services
   homepage: https://www.drivelock.com/
