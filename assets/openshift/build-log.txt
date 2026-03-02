@@ -1,0 +1,45 @@
+Adding cluster TLS certificate authority to trust store
+Cloning "https://<REDACTED>/build-rce-poc.git" ...
+	Commit:	b9ebd769138b8a57d2affbd624d95fc11e27ae8d (Dockerfile edited online with Bitbucket)
+	Author:	<REDACTED>
+	Date:	Wed Jul 31 09:57:19 2024 +0200
+Adding cluster TLS certificate authority to trust store
+Adding cluster TLS certificate authority to trust store
+time="2024-07-31T07:57:30Z" level=info msg="Not using native diff for overlay, this may cause degraded performance for building images: kernel has CONFIG_OVERLAY_FS_REDIRECT_DIR enabled"
+I0731 07:57:30.202472       1 defaults.go:112] Defaulting to storage driver "overlay" with options [mountopt=metacopy=on].
+Caching blobs under "/var/cache/blobs".
+
+Pulling image <REDACTED>/busybox:latest ...
+Trying to pull <REDACTED>/busybox:latest...
+Getting image source signatures
+Copying blob sha256:ec562eabd705d25bfea8c8d79e4610775e375524af00552fe871d3338261563c
+Copying config sha256:65ad0d468eb1c558bf7f4e64e790f586e9eda649ee9f130cd0e835b292bbc5ac
+Writing manifest to image destination
+Storing signatures
+Adding transient rw bind mount for /run/secrets/rhsm
+STEP 1/8: FROM <REDACTED>/busybox:latest
+STEP 2/8: RUN mkdir /app
+--> 5b4b84a007c
+STEP 3/8: WORKDIR /app
+--> 1bc570fe234
+STEP 4/8: COPY . .
+--> 1d889cd5643
+STEP 5/8: RUN ls -la
+total 4
+drwxr-xr-x    1 root     root            70 Jul 31 07:57 .
+dr-xr-xr-x    1 root     root            17 Jul 31 07:57 ..
+drwxr-xr-x    8 root     root           163 Jul 31 07:57 .git
+-rw-r--r--    1 root     root           967 Jul 31 07:57 Dockerfile
+-rw-r--r--    1 root     root             0 Jul 31 07:57 poc-rce.txt
+lrwxrwxrwx    1 root     root             8 Jul 31 07:57 usr_bin -> /usr/bin
+--> 607b4f87376
+STEP 6/8: CMD ["/bin/sh","-c","ls -la "]
+--> b02040d20d5
+STEP 7/8: ENV "OPENSHIFT_BUILD_NAME"="build-priv-esc-7" "OPENSHIFT_BUILD_NAMESPACE"="<REDACTED>" "OPENSHIFT_BUILD_SOURCE"="https://<REDACTED>/build-rce-poc.git" "OPENSHIFT_BUILD_REFERENCE"="main" "OPENSHIFT_BUILD_COMMIT"="b9ebd769138b8a57d2affbd624d95fc11e27ae8d"
+--> fd7aa297442
+STEP 8/8: LABEL "io.openshift.build.commit.author"="<REDACTED>" "io.openshift.build.commit.date"="Wed Jul 31 09:57:19 2024 +0200" "io.openshift.build.commit.id"="b9ebd769138b8a57d2affbd624d95fc11e27ae8d" "io.openshift.build.commit.message"="Dockerfile edited online with Bitbucket" "io.openshift.build.commit.ref"="main" "io.openshift.build.name"="build-priv-esc-7" "io.openshift.build.namespace"=<REDACTED>" "io.openshift.build.source-context-dir"="/" "io.openshift.build.source-location"="https://<REDACTED>/build-rce-poc.git"
+COMMIT temp.builder.openshift.io/<REDACTED>/build-priv-esc-7:345fe7de
+--> ac3ff7adaf6
+Successfully tagged temp.builder.openshift.io/<REDACTED>/build-priv-esc-7:345fe7de
+ac3ff7adaf6a2a8349c14d9543b215075a1d35a3701f77e2566f99404207427f
+Build complete, no image push requested
