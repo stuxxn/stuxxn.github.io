@@ -110,3 +110,13 @@ Query role assignments for user - 947a6e0e-30e1-4a1c-96f2-2a673760e04e
 }
 
 ```
+
+# Solution
+Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:
+
+    25.2.4
+    25.1.7
+    24.2.9
+
+No other mitigations are known.

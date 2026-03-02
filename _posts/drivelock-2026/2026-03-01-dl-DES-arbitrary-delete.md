@@ -117,3 +117,13 @@ Mode                LastWriteTime         Length Name
 -a----        11/3/2025   8:54 PM     1426724864 SQLServer2019-x64-ENU-Dev.iso
 -a----        11/3/2025   9:11 PM      495847104 SSMS-Setup-ENU.exe
 ```
+
+# Solution
+Patch for version 25.2, 25.1 and 24.2 were published on 2026-02-20, which fixes the vulnerability.
+Patched versions:
+
+    25.2.4
+    25.1.7
+    24.2.9
+
+No other mitigations are known.
